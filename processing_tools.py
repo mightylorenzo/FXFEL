@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 #import matplotlib.pyplot as plt
+#
+#Author: Daniel Bultrini, danielbultrini@gmail.com
 from multiprocessing import Pool
 import numpy as np
 import sys
@@ -10,7 +12,7 @@ from bokeh.io import output_file, show, curdoc
 from bokeh.layouts import layout
 from bokeh.models import Toggle, BoxAnnotation, CustomJS, Tabs, Panel, LinearAxis
 from bokeh.models import Range1d
-
+from FEL_equations import *
 
 
 c = 3.0e+8                    # Speed of light
@@ -34,7 +36,7 @@ def norm(a):
     return 2*((a - min(a))/(max(a)-min(a)))-1
 
 
-class SU_particle_dist():
+class SU_particle_distribution(object):
     '''Reads and provides processing to SU particle distributions
 
     initializes with a filename and the data,
@@ -166,15 +168,48 @@ class SU_particle_dist():
                                 'beta_y': 'beta y'})
 
     def get_current(self):
+        '''Calculates current per slice and returns array - uses approximation 
+        
+        current = total charge per slice * speed of light '''
         self.current = np.empty(self.Num_Slices)
-
+        bin_length = self.zpos[1]-self.z_pos[0]
         i = 0
         for comparison in self.Slice_Keys:
-            self.current[i] = np.sum(self.SU_data[:, 6][comparison])*e_ch
+            self.current[i] = (np.sum(self.SU_data[:, 6][comparison])*e_ch)*c/(bin_length)
             i += 1
 
         self.directory.update({ 'current': self.current})
         self.axis_labels.update({ 'current': 'slice current [A]'})
+
+
+    def undulator(self,undulator_period=0,magnetic_field=0,K=1):
+        if magnetic_field != 0:
+            self.K = undulator_parameter(magnetic_field,undulator_period)
+        else:
+            self.K = float(K)
+        self.undulator_period = undulator_period
+        self.gamma_res = resonant_electron_energy(np.average(
+                        self.SU_data[:, 5], weights=self.SU_data[:, 6])*c,0)
+        self.wavelen_res = resonant_wavelength(undulator_period,self.K,self.gamma_res)
+        
+    def pierce(self,slice_no):
+        K_JJ2 = (self.K*EM_charge_coupling(self.K))**2
+        pierce = self.current[slice_no]/(alfven*self.gamma_res**3)
+        pierce = pierce*(self.undulator_period**2)/(2*const.pi*self.std_x[slice_no]*self.std_y[slice_no])
+        pierce = (pierce*K_JJ2/(32*const.pi))**(1.0/3.0)
+        gain_length = (self.undulator_period/(4*const.pi*np.sqrt(3.0)*pierce))
+        return pierce, gain_length
+
+    def gain_length(self):
+        self.ming_xie_gain_length  = np.empty(self.Num_Slices)
+        for i in xrange(self.Num_Slices):
+            rho,gain = self.pierce(i)
+            ne = scaled_e_spread(self.std_pz[i]/self.CoM_pz[i],gain,self.undulator_period)
+            nd = scaled_transverse_size(self.std_x[i],gain,self.wavelen_res[0])
+            ny = scaled_emittance(self.eps_rms_x[i],gain,self.wavelen_res[0],self.beta_x[i])
+            print(gain,ne,nd,ny)
+            self.ming_xie_gain_length[i] = gain*(1+Ming_Xie_factor(nd,ne,ny))
+
 
     def custom_plot(self,x_axis,y_axis, plotter = 'circle', color = 'green',
                     filename = ' ',direct_call=False, text_color = 'black',
@@ -291,6 +326,15 @@ class SU_particle_dist():
         show(tabs)
 
 
+# class undulator(SU_particle_distribution):
+    
+
+#     def pierce(self,slice_no):
+#         K_JJ2 = (K*EM_charge_coupling(self.K))**2
+#         pierce = self.current[slice_no]/(alfven*self.gamma_res**3)
+#         pierce = pierce*(self.undulator_period**2)/(2*const.pi*self.std_x*self.std_y)
+#         pierce = (pierce*K_JJ2/(32*const.pi))**(1.0/3.0)
+#         return pierce
 
 
 
