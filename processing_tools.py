@@ -40,19 +40,17 @@ class SU_particle_dist():
     initializes with a filename and the data,
     which then can be processed by in built methods'''
 
-
     def __init__(self, filename):
-        self.units = ['[SU]','[m]','[um]','[mmrad]']
-        units = self.units
         self.filename = filename
         self.emit = []
-        self.axis_labels = {'x':'X position {}'.format(units[0]), 'px':'X momentum {}'.format(units[0]), 'y':'Y position {}'.format(units[0]),
-            'py':'Y momentum {}'.format(units[0]), 'z':'Z position {}'.format(units[0]),'pz':'Z momentum {}'.format(units[0]), 'NE':'Weight',
-            'e_y': 'Y emittance {}'.format(units[0]), 'e_x':'X emittance {}'.format(units[0]), 'slice_z':'Z position {}'.format(units[0]),
-            'mean_x' : 'mean x position {}'.format(units[0]), 'mean_y' : 'mean y position {}'.format(units[0])}
+        self.axis_labels = {'x':'X position [SU]', 'px':'X momentum [SU]', 'y':'Y position [SU]',
+            'py':'Y momentum [SU]', 'z':'Z position [SU]','pz':'Z momentum [SU]', 'NE':'Weight',
+            'e_y': 'Y emittance [SU]', 'e_x':'X emittance [SU]', 'slice_z':'Z position [SU]',
+            'mean_x' : 'mean x position [SU]', 'mean_y' : 'mean y position [SU]'}
+
         with tables.open_file(filename,'r') as f:  
             self.SU_data =  f.root.Particles.read()
-        #A dictionary that stores keys and points to relevant arrays
+        
         self.directory = {'x':self.SU_data[:, 0], 'px':self.SU_data[:, 1],
                     'y':self.SU_data[:, 2], 'py':self.SU_data[:, 3],
                     'z':self.SU_data[:, 4],'pz':self.SU_data[:, 5],
@@ -66,10 +64,10 @@ class SU_particle_dist():
         self.SU_data[:, 3] = self.SU_data[:, 3]*(m*c)
         self.SU_data[:, 5] = self.SU_data[:, 5]*(m*c)
 
-        self.axis_labels = {'x':'X position {}'.format(units[1]),'px':'X momentum {}'.format(units[0]),'y':'Y position {}'.format(units[1]),
-            'py':'Y momentum {}'.format(units[0]),'z':'Z position {}'.format(units[2]),'pz':'Z momentum {}'.format(units[0]),'NE':'Weight',
-            'e_y': 'Y emittance {}'.format(units[0]), 'e_x':'X emittance {}'.format(units[3]), 'slice_z':'Z position {}'.format(units[2]),
-            'mean_x' : 'mean x position {}'.format(units[1]), 'mean_y' : 'mean y position {}'.format(units[1])}
+        self.axis_labels = {'x':'X position [m]','px':'X momentum [mmrad]','y':'Y position [m]',
+            'py':'Y momentum [mmrad]','z':'Z position [m]','pz':'Z momentum [mmrad]','NE':'Weight',
+            'e_y': 'Y emittance [mmrad]', 'e_x':'X emittance [mmrad]', 'slice_z':'Z position [um]',
+            'mean_x' : 'mean x position [m]', 'mean_y' : 'mean y position [m]'}
 
     def Slice(self, Num_Slices):
         '''set data slicing for use in certain routines if needed,
@@ -119,13 +117,16 @@ class SU_particle_dist():
         '''Returns the weighted average positions in 
             x and y as self.mean_x, self.mean_y'''
 
+        # allocate arrays of appropiate size in memory
         self.CoM_x, self.CoM_y = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
         self.CoM_px, self.CoM_py = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
         self.CoM_pz, self.std_pz = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
         self.std_x, self.std_y = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
+
+        #Loop through slices and apply weighed standard deviation and average as a sort of 'center of mass'
         i = 0
         for comparison in self.Slice_Keys:
-            weight=self.SU_data[:, 6][comparison]
+            weight = self.SU_data[:, 6][comparison]
 
             self.CoM_x[i] = np.average(self.SU_data[:, 0][comparison], weights=weight)
             self.CoM_y[i] = np.average(self.SU_data[:, 2][comparison], weights=weight)
@@ -153,7 +154,7 @@ class SU_particle_dist():
                                 'beta_y': self.beta_y,
                                 })
         
-        self.axis_labels.update({'CoM_x': 'CoM X position', 
+        self.axis_labels.update({ 'CoM_x': 'CoM X position', 
                                 'CoM_y': 'CoM Y position',
                                 'CoM_px': 'CoM X momentum', 
                                 'CoM_py': 'CoM Y momentum',
@@ -207,7 +208,7 @@ class SU_particle_dist():
                 # x_range=Range1d(min(x_data), max(x_data)), 
                 # y_range=Range1d(min(y_data), max(y_data))
                 # )
-        self.axis_labels['e_y'] = 'Y Emittance {}'.format(units[0])
+        self.axis_labels['e_y'] = 'Y Emittance [SU]'
 
         p.yaxis.axis_label_text_color = text_color
 
