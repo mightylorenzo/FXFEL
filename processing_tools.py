@@ -2,13 +2,13 @@
 
 #import matplotlib.pyplot as plt
 #
-#Author: Daniel Bultrini, danielbultrini@gmail.com
+#Author: Daniel Bultrini, danielbultrini@gmail.CoM
 
 import numpy as np
 import sys
 import tables
 import warnings
-from particle_distribution.FEL_equations import *
+from FEL_equations import *
 
 
 c = float(3.0e+8)                    # Speed of light
@@ -44,8 +44,8 @@ class SU_particle_distribution(object):
                            'e_y': '[SU]', 'e_x':'[SU]', 'slice_z':'[SU]',
                            'mean_x' :'[SU]', 'mean_y' : '[SU]'}
 
-        with tables.open_file(filename, 'r') as f:
-            self.SU_data = f.root.Particles.read()
+        with tables.open_file(filename, 'r') as F:
+            self.SU_data = F.root.Particles.read()
 
         self.directory = {'x':self.SU_data[:, 0], 'px':self.SU_data[:, 1],
                           'y':self.SU_data[:, 2], 'py':self.SU_data[:, 3],
@@ -54,11 +54,13 @@ class SU_particle_distribution(object):
 
     def SU2SI(self):
         '''Converts data to SI if needed'''
-
-        self.SU_data[:, 1] = self.SU_data[:, 1]*(m*c)
-        self.SU_data[:, 3] = self.SU_data[:, 3]*(m*c)
-        self.SU_data[:, 5] = self.SU_data[:, 5]*(m*c)
-        self.directory['SI'] = True
+        if not self.directory['SI']:
+            self.SU_data[:, 1] = self.SU_data[:, 1]*(m*c)
+            self.SU_data[:, 3] = self.SU_data[:, 3]*(m*c)
+            self.SU_data[:, 5] = self.SU_data[:, 5]*(m*c)
+            self.directory['SI'] = True
+        else:
+            pass
 
     def Slice(self, Num_Slices):
         '''set data slicing for use in certain routines if needed,
@@ -91,7 +93,7 @@ class SU_particle_distribution(object):
             m_mOmx = self.SU_data[:, 1][comparison]
             m_POSy = self.SU_data[:, 2][comparison]
             m_mOmy = self.SU_data[:, 3][comparison]
-            ###########~~Code by Piotr Traczkowski~~################################################
+            ###########~~Code by Piotr Traczykowski~~################################################
             x_2 = ((np.sum(m_POSx*m_POSx))/len(m_POSx))-(np.mean(m_POSx))**2.0                     #
             px_2 = ((np.sum(m_mOmx*m_mOmx))/len(m_mOmx))-(np.mean(m_mOmx))**2.0                    #
             xpx = np.sum(m_POSx*m_mOmx)/len(m_POSx)-np.sum(m_POSx)*np.sum(m_mOmx)/(len(m_POSx))**2 #
@@ -107,30 +109,30 @@ class SU_particle_distribution(object):
         self.directory.update({'e_x': self.eps_rms_x,
                                'e_y': self.eps_rms_y})
 
-    def Com(self):
+    def CoM(self):
         '''Returns the weighted average positions in
             x and y as self.mean_x, self.mean_y'''
 
         if not self.directory.__contains__('e_x'):
-            warnings.warn('Need to run emittance first')
+            warnings.warn('Need to run emittance first, calculating...')
             self.Calculate_Emittance()
 
 
         # allocate arrays of appropiate size in memory
-        self.Com_x, self.Com_y = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
-        self.Com_px, self.Com_py = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
-        self.Com_pz, self.std_pz = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
+        self.CoM_x, self.CoM_y = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
+        self.CoM_px, self.CoM_py = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
+        self.CoM_pz, self.std_pz = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
         self.std_x, self.std_y = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
 
         #Loop through slices and apply weighed standard deviation and average (Com)
         for i, comparison in enumerate(self.Slice_Keys):
             weight = self.SU_data[:, 6][comparison]
 
-            self.Com_x[i] = np.average(self.SU_data[:, 0][comparison], weights=weight)
-            self.Com_y[i] = np.average(self.SU_data[:, 2][comparison], weights=weight)
-            self.Com_px[i] = np.average(self.SU_data[:, 1][comparison], weights=weight)
-            self.Com_py[i] = np.average(self.SU_data[:, 3][comparison], weights=weight)
-            self.Com_pz[i] = np.average(self.SU_data[:, 5][comparison], weights=weight)
+            self.CoM_x[i] = np.average(self.SU_data[:, 0][comparison], weights=weight)
+            self.CoM_y[i] = np.average(self.SU_data[:, 2][comparison], weights=weight)
+            self.CoM_px[i] = np.average(self.SU_data[:, 1][comparison], weights=weight)
+            self.CoM_py[i] = np.average(self.SU_data[:, 3][comparison], weights=weight)
+            self.CoM_pz[i] = np.average(self.SU_data[:, 5][comparison], weights=weight)
             self.std_pz[i] = weighted_std(self.SU_data[:, 5][comparison], weight)
             self.std_x[i] = weighted_std(self.SU_data[:, 0][comparison], weight)
             self.std_y[i] = weighted_std(self.SU_data[:, 2][comparison], weight)
@@ -139,11 +141,11 @@ class SU_particle_distribution(object):
         self.beta_x, self.beta_y = ((np.sqrt(4*np.log(2))*self.std_x)**2)/self.eps_rms_x,\
                                     ((np.sqrt(4*np.log(2))*self.std_y)**2)/self.eps_rms_y
 
-        self.directory.update({'Com_x': self.Com_x,
-                               'Com_y': self.Com_y,
-                               'Com_px': self.Com_px,
-                               'Com_py': self.Com_py,
-                               'Com_pz': self.Com_pz,
+        self.directory.update({'Com_x': self.CoM_x,
+                               'Com_y': self.CoM_y,
+                               'Com_px': self.CoM_px,
+                               'Com_py': self.CoM_py,
+                               'Com_pz': self.CoM_pz,
                                'std_pz': self.std_pz,
                                'std_y': self.std_y,
                                'std_x': self.std_x,
@@ -167,6 +169,11 @@ class SU_particle_distribution(object):
 
         if not self.directory['SI']:
             warnings.warn('might get strange results without SI conversion')
+            n = int(raw_input('Convert? [y/n]:'))
+            if n == 'y':
+                self.SU2SI()
+            else:
+                print('Might not have selected right option, no conversion done.')
 
         self.current = np.empty(self.Num_Slices)
         bin_length = self.z_pos[1]-self.z_pos[0]
@@ -200,6 +207,13 @@ class SU_particle_distribution(object):
         return pierce, gain_length
 
     def gain_length(self):
+        if not hasattr(self, 'undulator_period'):
+            n = float(raw_input('Need to define undulator period [m]:'))
+            K = float(raw_input('Need to define K (optional):'))
+            T = float(raw_input('Need to define peak field (optional, 0 to ignore) [T]:'))
+            self.undulator(undulator_period=n, magnetic_field=T, K=K)
+
+
         self.ming_xie_gain_length = np.empty(self.Num_Slices)
         self.gain_length_1D = np.empty(self.Num_Slices)
         self.pierce_param = np.empty(self.Num_Slices)
@@ -207,14 +221,18 @@ class SU_particle_distribution(object):
         for i in xrange(self.Num_Slices):
 
             rho, gain = self.pierce(i)
-            ne = scaled_e_spread(self.std_pz[i]/self.Com_pz[i], gain, self.undulator_period)
+            ne = scaled_e_spread(self.std_pz[i]/self.CoM_pz[i], gain, self.undulator_period)
             nd = scaled_transverse_size(self.std_x[i], gain, self.wavelen_res[0])
             ny = scaled_emittance(self.eps_rms_x[i], gain, self.wavelen_res[0], self.beta_x[i])
             self.ming_xie_gain_length[i] = gain*(1+ming_xie_factor(nd, ne, ny))
             self.pierce_param[i] = rho
             self.gain_length_1D[i] = gain
-        self.directory.update({'mX_gain': self.ming_xie_gain_length})
-        self.axis_labels.update({'mX_gain': 'ming Xie Gain Length'})
+        self.directory.update({'MX_gain': self.ming_xie_gain_length, 
+                               '1D_gain': self.gain_length_1D,
+                               'pierce':self.pierce_param})
+        self.axis_labels.update({'MX_gain': 'Ming Xie Gain Length',
+                                 '1D_gain': '1D Gain Length',
+                                 'pierce': 'Pierce Parameter'})
 
 
 
@@ -237,9 +255,8 @@ class SU_Bokeh_Plotting(SU_particle_distribution):
             = (figure, save, output_file, show, curdoc)
         self.layout, self.Tabs, self.Panel = (layout, Tabs, Panel)
 
-    def custom_plot(self, x_axis, y_axis, key ='', plotter='circle', color='green',
-                    filename=' ', text_color='black',
-                    Legend=False):
+    def custom_plot(self, x_axis, y_axis, key='', plotter='circle', color='green',
+                    file_name=True, text_color='black', Legend=False, title=True):
 
         '''Takes two strings from directory and plots x,y with circles or line plot
         direct call = True creates '''
@@ -247,21 +264,30 @@ class SU_Bokeh_Plotting(SU_particle_distribution):
         axis_titles = {'x':'X position', 'px':'X momentum', 'y':'Y position',
                        'py':'Y momentum', 'z':'Z position', 'pz':'Z momentum',
                        'e_x':'emittance', 'e_y':'emittance', 'slice_z':'Z position',
-                       'mean_x':'mean position', 'Com_x':'Com X position', 
+                       'mean_x':'mean position', 'Com_x':'Com X position',
                        'Com_y': 'Com Y position', 'NE':'Weight', 'Com_pz':'Com Z momentum',
-                       'Com_px':'Com X momentum', 'Com_py':'Com Y momentum', 'current':'Current', 
-                       'std_pz':'STD of Z momentum','std_x':'STD of x position',
-                       'std_y':'STD of y position', 'beta_x':'beta x', 'beta_y':'beta y'}
+                       'Com_px':'Com X momentum', 'Com_py':'Com Y momentum', 'current':'Current',
+                       'std_pz':'STD of Z momentum', 'std_x':'STD of x position',
+                       'std_y':'STD of y position', 'beta_x':'beta x', 'beta_y':'beta y',
+                       'MX_gain': 'Ming Xie Gain Length', '1D_gain': '1D Gain Length',
+                       'pierce': 'Pierce Parameter'}
 
         self.axis_labels['e_y'] = 'Emittance'
 
         x_data = self.directory[x_axis]
         y_data = self.directory[y_axis]
-        title= ''.join([axis_titles[y_axis], ' against ', axis_titles[x_axis]])
-        self.output_file(filename[:-3]+'.html')
+
+        if title:
+            title = ''.join([axis_titles[y_axis], ' against ', axis_titles[x_axis]])
+
+        if file_name:
+            self.output_file(self.SU_distribution.filename[:-3]+'.html')
+
+        else:
+            self.output_file(file_name+'.html')
 
         p = self.figure(title=title,
-                        x_axis_label=self.axis_labels[x_axis], 
+                        x_axis_label=self.axis_labels[x_axis],
                         y_axis_label=self.axis_labels[y_axis])
 
         self.axis_labels['e_y'] = 'Y Emittance '
@@ -293,7 +319,7 @@ class SU_Bokeh_Plotting(SU_particle_distribution):
             n = int(raw_input('Enter number of slices (integer): '))
             self.SU_distribution.Slice(n)
             self.SU_distribution.Calculate_Emittance()
-            self.SU_distribution.Com()
+            self.SU_distribution.CoM()
             self.SU_distribution.get_current()
 
         self.output_file("tabs.html")
@@ -313,6 +339,7 @@ class SU_Bokeh_Plotting(SU_particle_distribution):
         pz_py = self.custom_plot('pz', 'py')
         current = self.custom_plot('slice_z', 'current', key='current', plotter='line')
         std = self.custom_plot('slice_z', 'std_pz', key='std', plotter='line')
+       
 
         e_y = self.custom_plot('slice_z', 'e_x', key='e_y', plotter='line', Legend='E_x')
         e_y.line(self.directory['slice_z'], self.directory['e_y'], color='blue', legend="E_y")
@@ -331,8 +358,12 @@ class SU_Bokeh_Plotting(SU_particle_distribution):
         beta.line(self.directory['slice_z'], self.directory['beta_y'], color='blue', legend="B(y)")
         Com_pz = self.custom_plot('slice_z', 'Com_pz', key='Com_pz', plotter='line')
 
+        if self.directory.__contains__('MX_gain'):
+            FEL_gain = self.custom_plot('slice_z','MX_gain',key='gain', plotter='line', Legend='Ming Xie')
+            FEL_gain.line(self.directory['slice_z'], self.directory['1D_gain'], color='blue', legend="1D")
 
     def plot_defaults(self):
+        '''creates bokeh plots and html file, shows automatically'''
         if hasattr(self, 'auto_plots'):
             pass
         else:
@@ -360,7 +391,14 @@ class SU_Bokeh_Plotting(SU_particle_distribution):
         tab2 = self.Panel(child=l2, title="Z ")
         tab3 = self.Panel(child=l3, title="transverse phase space")
         tab4 = self.Panel(child=l4, title="Emittances")
-        tabs = self.Tabs(tabs=[tab1, tab2, tab3, tab4])
+
+        if self.directory.__contains__('MX_gain'):
+            l5 = self.layout([FEL_agin], sizing_mode='fixed')
+            tab5 = self.Panel(child=l5, title="FEL params")
+            tabs = self.Tabs(tabs=[tab1, tab2, tab3, tab4, tab5])
+
+        else:
+            tabs = self.Tabs(tabs=[tab1, tab2, tab3, tab4])
 
         self.curdoc().add_root(tabs)
         self.show(tabs)
