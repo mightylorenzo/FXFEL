@@ -60,6 +60,7 @@ class SU_particle_distribution(object):
             self.SU_data[:, 5] = self.SU_data[:, 5]*(m*c)
             self.directory['SI'] = True
         else:
+            print('Already converted')
             pass
 
     def Slice(self, Num_Slices):
@@ -93,7 +94,7 @@ class SU_particle_distribution(object):
             m_mOmx = self.SU_data[:, 1][comparison]
             m_POSy = self.SU_data[:, 2][comparison]
             m_mOmy = self.SU_data[:, 3][comparison]
-            ###########~~Code by Piotr Traczykowski~~################################################
+            ###########~~Code by Piotr Traczykowski~~###############################################
             x_2 = ((np.sum(m_POSx*m_POSx))/len(m_POSx))-(np.mean(m_POSx))**2.0                     #
             px_2 = ((np.sum(m_mOmx*m_mOmx))/len(m_mOmx))-(np.mean(m_mOmx))**2.0                    #
             xpx = np.sum(m_POSx*m_mOmx)/len(m_POSx)-np.sum(m_POSx)*np.sum(m_mOmx)/(len(m_POSx))**2 #
@@ -185,20 +186,24 @@ class SU_particle_distribution(object):
         self.axis_labels.update({'current': 'slice current [A]'})
 
 
-    def undulator(self, undulator_period=0, magnetic_field=0, K=1):
+    def undulator(self, undulator_period=0, magnetic_field=0, K_fact=1):
+        '''Calculates basic undulator parameters - assumes planar arrangment'''
 
         if magnetic_field != 0:
-            self.K = undulator_parameter(magnetic_field, undulator_period)
+            self.K_fact = undulator_parameter(magnetic_field, undulator_period)
         else:
-            self.K = float(K)
+            self.K_fact = float(K_fact)
 
         self.undulator_period = undulator_period
         self.gama_res = resonant_electron_energy(np.average(
             self.SU_data[:, 5], weights=self.SU_data[:, 6])*c, 0)
-        self.wavelen_res = resonant_wavelength(undulator_period, self.K, self.gama_res)
+        self.wavelen_res = resonant_wavelength(undulator_period, self.K_fact, self.gama_res)
 
     def pierce(self, slice_no):
-        K_JJ2 = (self.K*EM_charge_coupling(self.K))**2
+        '''Calculates Pierce Parameter for a slice, 
+        returns pierce and 1d gain_length'''
+
+        K_JJ2 = (self.K_fact*EM_charge_coupling(self.K_fact))**2
         pierce = self.current[slice_no]/(alfven*self.gama_res**3)
         pierce = pierce*(self.undulator_period**2)/\
                  (2*const.pi*self.std_x[slice_no]*self.std_y[slice_no])
@@ -207,6 +212,7 @@ class SU_particle_distribution(object):
         return pierce, gain_length
 
     def gain_length(self):
+
         if not hasattr(self, 'undulator_period'):
             n = float(raw_input('Need to define undulator period [m]:'))
             K = float(raw_input('Need to define K (optional):'))
@@ -227,7 +233,7 @@ class SU_particle_distribution(object):
             self.ming_xie_gain_length[i] = gain*(1+ming_xie_factor(nd, ne, ny))
             self.pierce_param[i] = rho
             self.gain_length_1D[i] = gain
-        self.directory.update({'MX_gain': self.ming_xie_gain_length, 
+        self.directory.update({'MX_gain': self.ming_xie_gain_length,
                                '1D_gain': self.gain_length_1D,
                                'pierce':self.pierce_param})
         self.axis_labels.update({'MX_gain': 'Ming Xie Gain Length',
@@ -359,7 +365,7 @@ class SU_Bokeh_Plotting(SU_particle_distribution):
         Com_pz = self.custom_plot('slice_z', 'Com_pz', key='Com_pz', plotter='line')
 
         if self.directory.__contains__('MX_gain'):
-            FEL_gain = self.custom_plot('slice_z','MX_gain',key='gain', plotter='line', Legend='Ming Xie')
+            FEL_gain = self.custom_plot('slice_z','MX_gain', key='gain', plotter='line', Legend='Ming Xie')
             FEL_gain.line(self.directory['slice_z'], self.directory['1D_gain'], color='blue', legend="1D")
 
     def plot_defaults(self):
@@ -373,18 +379,18 @@ class SU_Bokeh_Plotting(SU_particle_distribution):
             exec(key + '=val')
 
         l1 = self.layout([[x_y, px_py],
-                         [x_px, y_py]], sizing_mode='fixed')
+                          [x_px, y_py]], sizing_mode='fixed')
                     
         l2 = self.layout([[z_px, z_py],
-                         [z_x, z_y]], sizing_mode='fixed')
+                          [z_x, z_y]], sizing_mode='fixed')
 
         l3 = self.layout([[pz_x, pz_y],
-                         [pz_px, pz_py]], sizing_mode='fixed')
+                          [pz_px, pz_py]], sizing_mode='fixed')
 
         l4 = self.layout([[e_y, mean_pos],
-                         [Com_p,Com_pz],
-                         [current,std],
-                         [beta]],sizing_mode='fixed')
+                          [Com_p,Com_pz],
+                          [current,std],
+                          [beta]],sizing_mode='fixed')
 
 
         tab1 = self.Panel(child=l1, title="X Y ")
