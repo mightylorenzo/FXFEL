@@ -51,6 +51,32 @@ class SU_particle_distribution(object):
                           'y':self.SU_data[:, 2], 'py':self.SU_data[:, 3],
                           'z':self.SU_data[:, 4], 'pz':self.SU_data[:, 5],
                           'NE':self.SU_data[:, 6], 'SI' : False}
+        
+        self.Num_Slices = int(0)
+        self.Step_Z = float(0)
+        self.Slice_Keys = np.array([], dtype=bool)
+        self.z_pos = np.array([])
+        self.eps_rms_x, self.eps_rms_y = np.array([]), np.array([])
+        self.CoM_x, self.CoM_y = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
+        self.CoM_px, self.CoM_py = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
+        self.CoM_pz, self.std_pz = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
+        self.std_x, self.std_y = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
+        self.beta_x, self.beta_y = np.empty(self.Num_Slices), np.empty(self.Num_Slices)
+        self.current = np.empty(self.Num_Slices)
+
+        self.axis_labels = {}
+        self.undulator_period = float(0)
+        self.K_fact = float(0)
+        self.gama_res = float(0)
+        self.wavelen_res = float(0)
+        self.ming_xie_gain_length = np.empty(self.Num_Slices)
+        self.gain_length_1D = np.empty(self.Num_Slices)
+        self.pierce_param = np.empty(self.Num_Slices)
+
+        #Initialize values to be calculated
+
+        
+
 
     def SU2SI(self):
         '''Converts data to SI if needed'''
@@ -243,16 +269,20 @@ class SU_particle_distribution(object):
 
 
 
+
+
 class SU_Bokeh_Plotting(SU_particle_distribution):
     '''A class that stores plots in Bokeh and allows
         for the generation of a html with all plots'''
 
     def __init__(self, SU_distribution):
-        from bokeh.plotting import figure, save
-        from bokeh.io import output_file, show, curdoc
+        from bokeh.plotting import figure, save #So not to be unusable if bokeh is not
+        from bokeh.io import output_file, show, curdoc #on the system
         from bokeh.layouts import layout
         from bokeh.models import Tabs, Panel
         #from bokeh.models import Range1d
+        if type(SU_distribution) == type(''):
+            pass
         self.SU_distribution = SU_distribution
         self.directory = SU_distribution.directory
         self.axis_labels = SU_distribution.axis_labels
