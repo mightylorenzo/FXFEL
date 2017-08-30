@@ -65,12 +65,13 @@ def ming_xie_factor(nd, ne, ny):
           0.35, 2.9, 2.4, 51.0, 0.95, 3.0, 5.4,
           0.7, 1.9, 1140.0, 2.2, 2.9, 3.2])
 
-    factor = (sp[0]*np.power(nd,sp[1])+ sp[2]*np.power(ne, sp[3])+
+    factor = (sp[0]*np.power(nd, sp[1])+ sp[2]*np.power(ne, sp[3])+
               sp[4]*np.power(ny, sp[5])+
               sp[6]*np.power(ne, sp[7])*np.power(ny, sp[8])+
               sp[9]*np.power(nd, sp[10])*np.power(ny, sp[11])+
               sp[12]*np.power(nd, sp[13])*np.power(ne, sp[14])+
               sp[15]*np.power(nd, sp[16])*np.power(ne, sp[17])*np.power(ny, sp[18]))
+    
     return factor
 
 def scaled_e_spread(e_spread, gain_length, undulator_period):
@@ -81,6 +82,20 @@ def scaled_transverse_size(transverse_size, gain_length, wavelength):
 
 def scaled_emittance(emittance,gain_length,wavelength,beta):
     return np.array([(4*const.pi*emittance*gain_length)/(beta*wavelength)])
+
+
+def pierce(self, k_fact, gamma_res, undulator_period, current, std_x, std_y):
+    '''Calculates Pierce Parameter for a slice,
+    returns pierce and 1d gain_length'''
+
+    K_JJ2 = (k_fact*EM_charge_coupling(k_fact))**2
+    pierce = current/(alfven*self.directory['gamma_res']**3)
+    pierce = pierce*(np.power(undulator_period,2))/\
+                (2*const.pi*std_x*std_y)
+    pierce = (pierce*K_JJ2/(32*const.pi))**(1.0/3.0)
+    gain_length = (undulator_period/(4*const.pi*np.sqrt(3.0)*pierce))
+
+    return pierce, gain_length
 
 
 
