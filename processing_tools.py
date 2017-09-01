@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-#import matplotlib.pyplot as plt
 #
-#Author: Daniel Bultrini, danielbultrini@gmail.CoM
+#Author: Daniel Bultrini, danielbultrini@gmail.calc_CoM
+#
+
 
 import numpy as np
 import pandas as pd
@@ -17,13 +18,16 @@ m = float(9.11e-31)                  # mass of electron
 E_CH = float(1.602e-19)
 P = np.pi
 
+def fname_format(filename, addition):
+    return filename[0:-3]+'_'+addition
+
 def beta(std_pos, emittance):
-    ''' Calculates a simple approximation of the Beta 
-    function for a slice given standard deviation of position and 
+    ''' Calculates a simple approximation of the Beta
+    function for a slice given standard deviation of position and
     slice emittance'''
     calc = (np.sqrt(4*np.log(2))*std_pos)
-    calc = np.power(calc ,2)
-    calc = np.divide(calc,emittance)
+    calc = np.power(calc , 2)
+    calc = np.divide(calc, emittance)
 
     return calc
 
@@ -53,14 +57,14 @@ class ParticleDistribution(object):
         with tables.open_file(filename, 'r') as F:
             self.SU_data = F.root.Particles.read()
 
-        self.directory = {'x':self.SU_data[:, 0], 'px':self.SU_data[:, 1],
-                          'y':self.SU_data[:, 2], 'py':self.SU_data[:, 3],
-                          'z':self.SU_data[:, 4], 'pz':self.SU_data[:, 5],
-                          'NE':self.SU_data[:, 6]}
+        self.dict = {'x':self.SU_data[:, 0], 'px':self.SU_data[:, 1],
+                     'y':self.SU_data[:, 2], 'py':self.SU_data[:, 3],
+                     'z':self.SU_data[:, 4], 'pz':self.SU_data[:, 5],
+                     'NE':self.SU_data[:, 6]}
 
         self.SI = False
 
-    def SU2SI(self):
+    def su2si(self):
         '''Converts data to SI if needed'''
         if not self.SI:
             self.SU_data[:, 1] = self.SU_data[:, 1]*(m*c)
@@ -70,10 +74,19 @@ class ParticleDistribution(object):
         else:
             print('Already converted')
             pass
-    
+    def optimal_slice(self, undulator_period, k_fact):
+            res_wavelength = feq.resonant_wavelength(undulator_period,k_fact,np.average(self.dict['pz']))
+            length_std = weighted_std(self.SU_data[:, 5],self.SU_data[:, 6])
+            std_x = weighted_std(self.dict['x'],self.SU_data[:, 6])
+            std_y = weighted_std(self.dict['y'],self.SU_data[:, 6])
+            avg_current = (np.sum(self.SU_data[:, 6])*E_CH)*c/(length_std)
+            avg_pierce = feq.pierce(k_fact,np.average(self.dict['pz']),undulator_period,current,std_x,std_y)
+            coherence_length = feq.coherence_length(res_wavelength,avg_pierce)
+            num_slices = feq.optimal_slice_no(length_std,coherence_length)
+            return num_slices
     def DistFrame(self):
         dist_dir = ('x', 'pz', 'y', 'x', 'py', 'px', 'z', 'NE')
-        dist_dir = {k: self.directory[k] for k in dist_dir}
+        dist_dir = {k: self.dict[k] for k in dist_dir}
         return pd.DataFrame(dist_dir)
 
     def bin(self,reduction_factor):
@@ -86,36 +99,38 @@ class Statistics(ParticleDistribution):
     def __init__(self,filename):
 
         super(Statistics,self).__init__(filename)
-        self.SU2SI()
+        self.su2si()
 
-    def Slice(self, Num_Slices):
+    def slice(self, Num_Slices):
         '''set data slicing for use in certain routines if needed,
-        returns 'self.directory['z_pos']' as array with z positions and self.directory['slice_keys']
+        returns 'self.dict['z_pos']' as array with z positions and self.dict['slice_keys']
         with boolean arrays for use in operations'''
 
-        self.directory['Num_Slices'] = Num_Slices
-        self.directory['Step_Z'] = (np.max(self.SU_data[:, 4])-np.min(self.SU_data[:, 4]))/\
-                                    self.directory['Num_Slices']
-        self.directory['slice_keys'] = np.ones((self.directory['Num_Slices'], self.SU_data.shape[0]), dtype=bool)
-        self.directory['z_pos'] = np.zeros(Num_Slices)
+        self.dict['Num_Slices'] = Num_Slices
+        self.dict['Step_Z'] = (np.max(self.SU_data[:, 4])-np.min(self.SU_data[:, 4]))/\
+                                    self.dict['Num_Slices']
+        self.dict['slice_keys'] = np.ones(
+            (self.dict['Num_Slices'], self.SU_data.shape[0]), dtype=bool)
+        self.dict['z_pos'] = np.zeros(Num_Slices)
 
-        for slice_no in xrange(self.directory['Num_Slices']):
-            z_low = np.min(self.SU_data[:, 4])+(slice_no*self.directory['Step_Z'])
-            z_high = np.min(self.SU_data[:, 4])+((slice_no+1)*self.directory['Step_Z'])
+        for slice_no in xrange(self.dict['Num_Slices']):
+            z_low = np.min(self.SU_data[:, 4])+(slice_no*self.dict['Step_Z'])
+            z_high = np.min(self.SU_data[:, 4])+((slice_no+1)*self.dict['Step_Z'])
             z_pos = (z_high+z_low)/2.0
-            self.directory['z_pos'][slice_no] = z_pos
-            self.directory['slice_keys'][slice_no] = np.array((self.SU_data[:, 4] >= z_low) &\
+            self.dict['z_pos'][slice_no] = z_pos
+            self.dict['slice_keys'][slice_no] = np.array((self.SU_data[:, 4] >= z_low) &\
                                                      (self.SU_data[:, 4] < z_high), dtype=bool)
 
-        self.directory.update({'slice_z': self.directory['z_pos']})
+        self.dict.update({'slice_z': self.dict['z_pos']})
 
-    def Calculate_Emittance(self):
-        '''Returns the emittance per slice as arrays self.directory['e_x'], self.directory['e_y']
+    def calc_emittance(self):
+        '''Returns the emittance per slice as arrays self.dict['e_x'], self.dict['e_y']
         directories 'e_x' 'and e_y'''
 
-        self.directory['e_x'], self.directory['e_y'] = np.empty(self.directory['Num_Slices']), np.empty(self.directory['Num_Slices'])
+        self.dict['e_x'], self.dict['e_y'] = \
+            np.empty(self.dict['Num_Slices']), np.empty(self.dict['Num_Slices'])
 
-        for i, comparison in enumerate(self.directory['slice_keys']):
+        for i, comparison in enumerate(self.dict['slice_keys']):
             m_POSx = self.SU_data[:, 0][comparison]
             m_mOmx = self.SU_data[:, 1][comparison]
             m_POSy = self.SU_data[:, 2][comparison]
@@ -129,47 +144,53 @@ class Statistics(ParticleDistribution):
             py_2 = ((np.sum(m_mOmy*m_mOmy))/len(m_mOmy))-(np.mean(m_mOmy))**2.0                    #
             ypy = np.sum(m_POSy*m_mOmy)/len(m_POSy)-np.sum(m_POSy)*np.sum(m_mOmy)/(len(m_POSy))**2 #
                                                                                                    #
-            self.directory['e_x'][i] = (1.0/(m*c))*np.sqrt((x_2*px_2)-(xpx*xpx))                   #
-            self.directory['e_y'][i] = (1.0/(m*c))*np.sqrt((y_2*py_2)-(ypy*ypy))                   #
+            self.dict['e_x'][i] = (1.0/(m*c))*np.sqrt((x_2*px_2)-(xpx*xpx))                        #
+            self.dict['e_y'][i] = (1.0/(m*c))*np.sqrt((y_2*py_2)-(ypy*ypy))                        #
             ########################################################################################
 
-    def CoM(self):
+    def calc_CoM(self):
         '''Returns the weighted average positions in
             x and y as self.mean_x, self.mean_y'''
 
-        if not self.directory.__contains__('e_x'):
+        if not self.dict.__contains__('e_x'):
             warnings.warn('Need to run emittance first, calculating...')
-            self.Calculate_Emittance()
+            self.calc_emittance()
 
 
         # allocate arrays of appropiate size in memory
-        self.directory['CoM_x'], self.directory['CoM_y'] = np.empty(self.directory['Num_Slices']), np.empty(self.directory['Num_Slices'])
-        self.directory['CoM_px'], self.directory['CoM_py'] = np.empty(self.directory['Num_Slices']), np.empty(self.directory['Num_Slices'])
-        self.directory['CoM_pz'], self.directory['std_pz'] = np.empty(self.directory['Num_Slices']), np.empty(self.directory['Num_Slices'])
-        self.directory['std_x'], self.directory['std_y'] = np.empty(self.directory['Num_Slices']), np.empty(self.directory['Num_Slices'])
-        self.directory['CoM_z'], self.directory['std_z'] = np.empty(self.directory['Num_Slices']), np.empty(self.directory['Num_Slices'])
-        self.directory['std_px'], self.directory['std_py'] = np.empty(self.directory['Num_Slices']), np.empty(self.directory['Num_Slices'])
+        self.dict['CoM_x'], self.dict['CoM_y'] = \
+            np.empty(self.dict['Num_Slices']), np.empty(self.dict['Num_Slices'])
+        self.dict['CoM_px'], self.dict['CoM_py'] = \
+            np.empty(self.dict['Num_Slices']), np.empty(self.dict['Num_Slices'])
+        self.dict['CoM_pz'], self.dict['std_pz'] = \
+            np.empty(self.dict['Num_Slices']), np.empty(self.dict['Num_Slices'])
+        self.dict['std_x'], self.dict['std_y'] = \
+            np.empty(self.dict['Num_Slices']), np.empty(self.dict['Num_Slices'])
+        self.dict['CoM_z'], self.dict['std_z'] = \
+            np.empty(self.dict['Num_Slices']), np.empty(self.dict['Num_Slices'])
+        self.dict['std_px'], self.dict['std_py'] = \
+            np.empty(self.dict['Num_Slices']), np.empty(self.dict['Num_Slices'])
 
 
         #Loop through slices and apply weighed standard deviation and average (CoM)
-        for i, comparison in enumerate(self.directory['slice_keys']):
+        for i, comparison in enumerate(self.dict['slice_keys']):
             weight = self.SU_data[:, 6][comparison]
 
-            self.directory['CoM_x'][i] = np.average(self.SU_data[:, 0][comparison], weights=weight)
-            self.directory['CoM_y'][i] = np.average(self.SU_data[:, 2][comparison], weights=weight)
-            self.directory['CoM_z'][i] = np.average(self.SU_data[:, 4][comparison], weights=weight)
-            self.directory['CoM_px'][i] = np.average(self.SU_data[:, 1][comparison], weights=weight)
-            self.directory['CoM_py'][i] = np.average(self.SU_data[:, 3][comparison], weights=weight)
-            self.directory['CoM_pz'][i] = np.average(self.SU_data[:, 5][comparison], weights=weight)
-            self.directory['std_pz'][i] = weighted_std(self.SU_data[:, 5][comparison], weight)
-            self.directory['std_px'][i] = weighted_std(self.SU_data[:, 1][comparison], weight)
-            self.directory['std_py'][i] = weighted_std(self.SU_data[:, 3][comparison], weight)
-            self.directory['std_x'][i] = weighted_std(self.SU_data[:, 0][comparison], weight)
-            self.directory['std_y'][i] = weighted_std(self.SU_data[:, 2][comparison], weight)
-            self.directory['std_z'][i] = weighted_std(self.SU_data[:, 4][comparison], weight)
+            self.dict['CoM_x'][i] = np.average(self.SU_data[:, 0][comparison], weights=weight)
+            self.dict['CoM_y'][i] = np.average(self.SU_data[:, 2][comparison], weights=weight)
+            self.dict['CoM_z'][i] = np.average(self.SU_data[:, 4][comparison], weights=weight)
+            self.dict['CoM_px'][i] = np.average(self.SU_data[:, 1][comparison], weights=weight)
+            self.dict['CoM_py'][i] = np.average(self.SU_data[:, 3][comparison], weights=weight)
+            self.dict['CoM_pz'][i] = np.average(self.SU_data[:, 5][comparison], weights=weight)
+            self.dict['std_pz'][i] = weighted_std(self.SU_data[:, 5][comparison], weight)
+            self.dict['std_px'][i] = weighted_std(self.SU_data[:, 1][comparison], weight)
+            self.dict['std_py'][i] = weighted_std(self.SU_data[:, 3][comparison], weight)
+            self.dict['std_x'][i] = weighted_std(self.SU_data[:, 0][comparison], weight)
+            self.dict['std_y'][i] = weighted_std(self.SU_data[:, 2][comparison], weight)
+            self.dict['std_z'][i] = weighted_std(self.SU_data[:, 4][comparison], weight)
 
-        self.directory['beta_x'] = beta(self.directory['std_x'], self.directory['e_x'])
-        self.directory['beta_y'] = beta(self.directory['std_y'], self.directory['e_y'])
+        self.dict['beta_x'] = beta(self.dict['std_x'], self.dict['e_x'])
+        self.dict['beta_y'] = beta(self.dict['std_y'], self.dict['e_y'])
 
 
         self.axis_labels.update({'CoM_x': 'CoM X position',
@@ -183,7 +204,7 @@ class Statistics(ParticleDistribution):
                                  'beta_x': 'beta x',
                                  'beta_y': 'beta y'})
 
-    def get_current(self):
+    def calc_current(self):
         '''Calculates current per slice and returns array - uses approximation
         current = total charge per slice * speed of light '''
 
@@ -191,22 +212,26 @@ class Statistics(ParticleDistribution):
             warnings.warn('might get strange results without SI conversion')
             n = str(raw_input('Convert? [y/n]:'))
             if n == 'y':
-                self.SU2SI()
+                self.su2si()
             else:
                 print('Might not have selected right option, no conversion done.')
 
-        self.directory['current'] = np.empty(self.directory['Num_Slices'])
-        bin_length = self.directory['z_pos'][1]-self.directory['z_pos'][0]
+        self.dict['current'] = np.empty(self.dict['Num_Slices'])
+        bin_length = self.dict['z_pos'][1]-self.dict['z_pos'][0]
 
-        for i, comparison in enumerate(self.directory['slice_keys']):
-            self.directory['current'][i] = (np.sum(self.SU_data[:, 6][comparison])*E_CH)*c/(bin_length)
+        for i, comparison in enumerate(self.dict['slice_keys']):
+            self.dict['current'][i] = (np.sum(self.SU_data[:, 6][comparison])*E_CH)*c/(bin_length)
 
         self.axis_labels.update({'current': 'slice current [A]'})
 
     def StatsFrame(self):
-        stats_dir = ('beta_x', 'std_pz', 'CoM_y', 'CoM_x', 'std_y', 'std_x', 'current', 'z_pos', 'std_z',
-                     'CoM_py', 'beta_y', 'e_x','slice_z', 'CoM_px','e_y','CoM_pz', 'CoM_z', 'std_px', 'std_py')
-        stats_dir = {k: self.directory[k] for k in stats_dir}
+        stats_dir = ('beta_x', 'std_pz', 'CoM_y', 'CoM_x', 
+                     'std_y', 'std_x', 'current', 'z_pos',
+                     'CoM_py', 'beta_y', 'e_x','slice_z', 
+                     'CoM_px','e_y','CoM_pz', 'CoM_z', 
+                     'std_px', 'std_py', 'std_z')
+
+        stats_dir = {k: self.dict[k] for k in stats_dir}
 
         return pd.DataFrame(stats_dir)
 
@@ -215,7 +240,7 @@ class FEL_Approximations(Statistics):
     '''Calculates and stores basic FEL parameters'''
 
     def __init__(self, filename):
-        super(FEL_Approximations,self).__init__(filename)
+        super(FEL_Approximations, self).__init__(filename)
 
 
 
@@ -223,53 +248,60 @@ class FEL_Approximations(Statistics):
         '''Calculates basic undulator parameters - assumes planar arrangment'''
 
         if magnetic_field != 0:
-            self.directory['K_fact'] = feq.undulator_parameter(magnetic_field, undulator_period)
+            self.dict['K_fact'] = feq.undulator_parameter(magnetic_field, undulator_period)
         else:
-            self.directory['K_fact'] = float(k_fact)
+            self.dict['K_fact'] = float(k_fact)
 
-        self.directory['undulator_period'] = undulator_period
-        self.directory['gamma_res'] = feq.resonant_electron_energy(np.average(self.directory['CoM_pz'])*c, 0)
-        self.directory['wavelength_res'] = feq.resonant_wavelength(undulator_period, self.directory['K_fact'], self.directory['gamma_res'])
+        self.dict['undulator_period'] = undulator_period
+        self.dict['gamma_res'] = feq.resonant_electron_energy(np.average(self.dict['CoM_pz'])*c, 0)
+        self.dict['wavelength_res'] = feq.resonant_wavelength(
+            undulator_period, self.dict['K_fact'], self.dict['gamma_res'])
 
     def pierce(self, slice_no):
         '''Calculates Pierce Parameter for a slice, 
         returns pierce and 1d gain_length'''
 
-        K_JJ2 = (self.directory['K_fact']*feq.EM_charge_coupling(self.directory['K_fact']))**2
-        pierce = self.directory['current'][slice_no]/(feq.alfven*self.directory['gamma_res']**3)
-        pierce = pierce*(self.directory['undulator_period']**2)/\
-                 (2*np.pi*self.directory['std_x'][slice_no]*self.directory['std_y'][slice_no])
+        K_JJ2 = (self.dict['K_fact']*feq.EM_charge_coupling(self.dict['K_fact']))**2
+        pierce = self.dict['current'][slice_no]/(feq.alfven*self.dict['gamma_res']**3)
+        pierce = pierce*(self.dict['undulator_period']**2)/\
+                 (2*np.pi*self.dict['std_x'][slice_no]*self.dict['std_y'][slice_no])
         pierce = (pierce*K_JJ2/(32*np.pi))**(1.0/3.0)
-        gain_length = (self.directory['undulator_period']/(4*np.pi*np.sqrt(3.0)*pierce))
+        gain_length = (self.dict['undulator_period']/(4*np.pi*np.sqrt(3.0)*pierce))
 
         return pierce, gain_length
 
     def gain_length(self):
         ''' Calculates the 1D and Ming Xie gain length per slice'''
 
-        if not 'undulator_period' in self.directory:
+        if not 'undulator_period' in self.dict:
             n = float(raw_input('Need to define undulator period [m]:'))
-            T = float(raw_input('Need to define peak field (optional, 0 to ignore, then you have to define K) [T]:'))
+            T = float(raw_input(
+                'Need to define peak field (optional, 0 to ignore, then you have to define K) [T]:')
+                )
             if T != 0:
                 K = float(raw_input('Need to define K:'))
             self.undulator(undulator_period=n, magnetic_field=T, K_fact=K)
         
-        self.directory['MX_gain'] = np.empty(self.directory['Num_Slices'])
-        self.directory['1D_gain'] = np.empty(self.directory['Num_Slices'])
-        self.directory['pierce'] = np.empty(self.directory['Num_Slices'])
+        self.dict['MX_gain'] = np.empty(self.dict['Num_Slices'])
+        self.dict['1D_gain'] = np.empty(self.dict['Num_Slices'])
+        self.dict['pierce'] = np.empty(self.dict['Num_Slices'])
 
-        for i, (std_pz, CoM_pz, std_x, e_x, beta_x) in enumerate(zip(self.directory['std_pz'], self.directory['CoM_pz'],
-                                                                   self.directory['std_x'], self.directory['e_x'],
-                                                                   self.directory['beta_x'])):
+        for i, (std_pz, CoM_pz, std_x, e_x, beta_x) in\
+         enumerate(zip(self.dict['std_pz'], self.dict['CoM_pz'],
+                       self.dict['std_x'], self.dict['e_x'],
+                       self.dict['beta_x'])):
 
             rho, gain = self.pierce(i)
-            ne = float(feq.scaled_e_spread(std_pz/CoM_pz, gain, self.directory['undulator_period']))
-            nd = float(feq.scaled_transverse_size(std_x, gain, self.directory['wavelength_res'][0]))
-            ny = float(feq.scaled_emittance(e_x, gain, self.directory['wavelength_res'][0], beta_x))
+            ne = float(feq.scaled_e_spread(
+                std_pz/CoM_pz, gain, self.dict['undulator_period']))
+            nd = float(feq.scaled_transverse_size(
+                std_x, gain, self.dict['wavelength_res'][0]))
+            ny = float(feq.scaled_emittance(
+                e_x, gain, self.dict['wavelength_res'][0], beta_x))
 
-            self.directory['pierce'][i] = rho
-            self.directory['1D_gain'][i] = gain
-            self.directory['MX_gain'][i] = float(gain*(1+feq.ming_xie_factor(nd, ne, ny)))
+            self.dict['pierce'][i] = rho
+            self.dict['1D_gain'][i] = gain
+            self.dict['MX_gain'][i] = float(gain*(1+feq.ming_xie_factor(nd, ne, ny)))
 
         self.axis_labels.update({'MX_gain': 'Ming Xie Gain Length',
                                  '1D_gain': '1D Gain Length',
@@ -277,22 +309,127 @@ class FEL_Approximations(Statistics):
 
     def FELFrame(self):
         FEL_dir = ('pierce','1D_gain','MX_gain','z_pos')
-        FEL_dir = {k: self.directory[k] for k in FEL_dir}
+        FEL_dir = {k: self.dict[k] for k in FEL_dir}
         return pd.DataFrame(FEL_dir)
 
 class ProcessedData(FEL_Approximations):
     '''Class that automatically prepares and stores all data for plotting'''
 
-    def __init__(self, filename, num_slices, undulator_period, peak_field=0, k_fact=1):
+    def __init__(self, filename, undulator_period, peak_field=0, k_fact=1, num_slices=False):
         super(ProcessedData, self).__init__(filename)
-        self.Slice(num_slices)
-        self.Calculate_Emittance()
-        self.CoM()
-        self.get_current()
+        if not num_slices:
+            warnings.warn('did not specify slice number, will slice by estimated coherence length')
+            num_slices = self.optimal_slice(undulator_period,k_fact)
+        else:
+            self.slice(num_slices)
+        self.calc_emittance()
+        self.calc_CoM()
+        self.calc_current()
         self.undulator(undulator_period, peak_field, k_fact)
         self.gain_length()
 
 
+class Panda_Plotting():
+    def __init__(self, processed_data):
+        import matplotlib.pyplot as plt
+        import matplotlib.ticker as ticker
+
+        self.plt, self.tk = plt, ticker
+        self.distframe = processed_data.DistFrame()
+        self.statsframe = processed_data.StatsFrame()
+        self.FELframe = processed_data.FELFrame()
+        self.file_path = processed_data.filename
+
+
+
+    def prep_plot(self, x_axis, y_ax_1, y_ax_2=False, title=None, kind='line',
+                  log=False, ID=None, x_label=False, y_label=False, show=False):
+
+
+
+        
+
+        if x_axis in self.statsframe.keys(): 
+            if (y_ax_1 in self.FELframe.keys()) or (y_ax_2 in self.FELframe.keys()):
+                dataset = pd.concat([panda_FEL,panda_stats], axis=1, join_axes=[panda_FEL.index]) #joins the two
+            else:
+                dataset = self.statsframe
+        elif x_axis in self.distframe.keys():
+            dataset = self.distframe
+        else:
+            dataset = self.FELframe
+
+        rng_x, rng_y = [9999,0], [99999,0]   #Routine to define plotting range, ugly, but necessary
+        if dataset[x_axis].max() > rng_x[1]:
+            rng_x[1] = dataset[x_axis].max()
+        if dataset[x_axis].min() < rng_x[0]:
+            rng_x[0] = dataset[x_axis].min()
+        if dataset[y_ax_1].max() > rng_y[1]:
+            rng_y[1] = dataset[y_ax_1].max()
+        if dataset[y_ax_1].min() < rng_y[0]:
+            rng_y[0] = dataset[y_ax_1].min()
+        if y_ax_2:
+            if dataset[y_ax_2].max() > rng_y[1]:
+                rng_y[1] = dataset[y_ax_2].max()
+            if dataset[y_ax_2].min() < rng_y[0]:
+                rng_y[0] = dataset[y_ax_2].min()
+        rng_x = (rng_x[0],rng_x[1])
+        rng_y = (rng_y[0],rng_y[1])
+
+        alpha = 1
+        if kind == 'scatter':
+            alpha = 0.05
+
+        fig, ax = self.plt.subplots(1,1)
+        dataset.plot(ax=ax, x=x_axis, y=y_ax_1, title=title, kind=kind, color='b',xlim=rng_x,ylim=rng_y, alpha=alpha, label=y_ax_1)
+
+
+        if y_ax_2:
+            dataset.plot(ax=ax, x=x_axis, y=y_ax_2, kind=kind, color='r', alpha=alpha, label=y_ax_2)
+        else:
+            pass
+
+        if not show:
+            fig.savefig(fname_format(self.file_path,ID))
+            self.plt.close(fig)
+        else:
+            self.plt.show()
+
+    def plot(self):
+
+        self.prep_plot('z_pos','std_pz',
+            title='Standard deviation of transverse coordinates per slice', ID='std-pz')        
+        self.prep_plot('z_pos','std_x','std_y',
+            'Standard deviation of transverse coordinates per slice', ID='CoM-pos')
+        self.prep_plot('z_pos','std_px','std_py',
+            'Standard deviation of transverse momenta per slice', ID='std-mom')
+        self.prep_plot('z_pos','CoM_x','CoM_y',
+            'Centre of mass of transverse coordinates per slice', ID='std-pos')
+        self.prep_plot('z_pos','CoM_px','CoM_py',
+            'Centre of mass of transverse momenta per slice', ID='CoM-mom')
+        self.prep_plot('z_pos','current',
+            title='Current per slice', ID='current')
+        self.prep_plot('z_pos','e_x','e_y',
+            'Transverse slice emittance', ID='em')
+        self.prep_plot('z_pos','beta_x','beta_y',
+            'Beta function per slice', ID='beta')
+        self.prep_plot
+
+        self.prep_plot('x', 'y',kind='scatter', ID='xy',title='Transverse postitions')
+        self.prep_plot('x', 'px',kind='scatter', ID='xpx',title='Horizontal phases pace')
+        self.prep_plot('y', 'py',kind='scatter', ID='ypy',title='Vertical phasespace')
+        self.prep_plot('z', 'pz',kind='scatter', ID='zpz',title='Longitudinal phasespace')
+        self.prep_plot('px', 'py',kind='scatter', ID='pxpy',title='Screen divergence')
+        self.prep_plot('z', 'px', 'py',kind='scatter', ID='zpx',title='Longitudinal phasespace correlations')
+        #self.prep_plot('z', 'py',kind='scatter', ID='zpy',title='')
+        self.prep_plot('z', 'x', 'y' ,kind='scatter', ID='zx',title='Longitudinal transverse position correlations')
+        #self.prep_plot('z', 'y',kind='scatter', ID='zy',title='')
+        self.prep_plot('pz', 'x','y',kind='scatter', ID='pzx',title='Energy deviation - transverse postion correlations')
+        #self.prep_plot('pz', 'y',kind='scatter', ID='pzy',title='')
+        self.prep_plot('pz', 'px', 'py', kind='scatter', ID='pzpx',title='Energy deviation - divergence correlations')
+        #self.prep_plot('pz', 'py',kind='scatter', ID='pzpy',title='')
+        
+        
 
 
 class Bokeh_Plotting():
@@ -306,17 +443,17 @@ class Bokeh_Plotting():
         from bokeh.models import Tabs, Panel
         #from bokeh.models import Range1d
         self.SU_distribution = SU_distribution
-        self.directory = SU_distribution.directory
+        self.dict = SU_distribution.dict
         self.axis_labels = SU_distribution.axis_labels
         self.plots = {}
-        self.figure, self.save, self.output_file, self.show, self.curdoc \
+        self.figure, self.save, self.output_file, self.show, self.curdoc\
             = (figure, save, output_file, show, curdoc)
         self.layout, self.Tabs, self.Panel = (layout, Tabs, Panel)
 
     def custom_plot(self, x_axis, y_axis, key='', plotter='circle', color='green',
-                    file_name=False, text_color='black', Legend=False, title=True):
+                    file_name=False, text_color='black', legend=False, title=True, save_png = False):
 
-        '''Takes two strings from directory and plots x,y with circles or line plot
+        '''Takes two strings from dict and plots x,y with circles or line plot
         direct call = True creates '''
 
         axis_titles = {'x':'X position', 'px':'X momentum', 'y':'Y position',
@@ -330,17 +467,12 @@ class Bokeh_Plotting():
                        'MX_gain': 'Ming Xie Gain Length', '1D_gain': '1D Gain Length',
                        'pierce': 'Pierce Parameter'}
 
-        x_data = self.directory[x_axis]
-        y_data = self.directory[y_axis]
+        x_data = self.dict[x_axis]
+        y_data = self.dict[y_axis]
 
         if title:
             title = ''.join([axis_titles[y_axis], ' against ', axis_titles[x_axis]])
 
-        if not file_name:
-            self.output_file(self.SU_distribution.filename[:-3]+'.html')
-
-        else:
-            self.output_file(file_name+'.html')
 
         p = self.figure(title=title,
                         x_axis_label=self.axis_labels[x_axis],
@@ -349,7 +481,7 @@ class Bokeh_Plotting():
 
         p.yaxis.axis_label_text_color = text_color
 
-        if not Legend:
+        if not legend:
             if plotter == 'circle':
                 p.circle(x_data, y_data, color=color)
             elif plotter == 'line':
@@ -358,27 +490,33 @@ class Bokeh_Plotting():
 
         else:
             if plotter == 'circle':
-                p.circle(x_data, y_data, color=color, legend=Legend)
+                p.circle(x_data, y_data, color=color, legend=legend)
             elif plotter == 'line':
-                p.line(x_data, y_data, color=color, legend=Legend)            
+                p.line(x_data, y_data, color=color, legend=legend)            
 
         if key == '':
             key = x_axis+'_'+y_axis
         
         self.plots.update({key:p})
-
+        if save_png:
+            from bokeh.io import export_png
+            export_png(p,key)
         return p
 
-    def prepare_defaults(self):
+    def prepare_defaults(self, file_name=False):
         if not self.SU_distribution.SI:
-            self.SU_distribution.SU2SI()
+            self.SU_distribution.su2si()
             n = int(raw_input('Enter number of slices (integer): '))
-            self.SU_distribution.Slice(n)
-            self.SU_distribution.Calculate_Emittance()
-            self.SU_distribution.CoM()
-            self.SU_distribution.get_current()
+            self.SU_distribution.slice(n)
+            self.SU_distribution.calc_emittance()
+            self.SU_distribution.calc_CoM()
+            self.SU_distribution.calc_current()
 
-        self.output_file("tabs.html")
+        if not file_name:
+            self.output_file(self.SU_distribution.filename[:-3]+'.html')
+
+        else:
+            self.output_file(file_name+'.html')
 
         x_y = self.custom_plot('x', 'y')
         x_px = self.custom_plot('x', 'px')
@@ -397,29 +535,30 @@ class Bokeh_Plotting():
         std = self.custom_plot('slice_z', 'std_pz', key='std', plotter='line')
        
 
-        e_y = self.custom_plot('slice_z', 'e_x', key='e_y', plotter='line', Legend='E_x')
-        e_y.line(self.directory['slice_z'], self.directory['e_y'], color='blue', legend="E_y")
+        e_y = self.custom_plot('slice_z', 'e_x', key='e_y', plotter='line', legend='E_x')
+        e_y.line(self.dict['slice_z'], self.dict['e_y'], color='blue', legend="E_y")
 
         mean_pos = self.custom_plot('slice_z', 'CoM_x', key='mean_pos', 
-                                    plotter='line', Legend="CoM x")
-        mean_pos.line(self.directory['slice_z'], self.directory['CoM_y'], 
+                                    plotter='line', legend="CoM x")
+        mean_pos.line(self.dict['slice_z'], self.dict['CoM_y'], 
                       color='blue', legend="CoM y")
 
         CoM_p = self.custom_plot('slice_z', 'CoM_px', key='CoM_p', 
-                                 plotter='line',Legend="CoM px")
-        CoM_p.line(self.directory['slice_z'], self.directory['CoM_py'], 
+                                 plotter='line',legend="CoM px")
+        CoM_p.line(self.dict['slice_z'], self.dict['CoM_py'], 
                    color='blue', legend="CoM py")
 
-        beta = self.custom_plot('slice_z', 'beta_x', key='beta', plotter='line', Legend="B(x)")
-        beta.line(self.directory['slice_z'], self.directory['beta_y'], color='blue', legend="B(y)")
+        beta = self.custom_plot('slice_z', 'beta_x', key='beta', plotter='line', legend="B(x)")
+        beta.line(self.dict['slice_z'], self.dict['beta_y'], color='blue', legend="B(y)")
         CoM_pz = self.custom_plot('slice_z', 'CoM_pz', key='CoM_pz', plotter='line')
 
-        if self.directory.__contains__('MX_gain'):
-            FEL_gain = self.custom_plot('slice_z','MX_gain', key='gain', plotter='line', Legend='Ming Xie')
-            FEL_gain.line(self.directory['slice_z'], self.directory['1D_gain'], color='blue', legend="1D")
+        if self.dict.__contains__('MX_gain'):
+            FEL_gain = self.custom_plot('slice_z','MX_gain', key='gain', plotter='line', legend='Ming Xie gain')
+            gain_length = self.custom_plot('slice_z', '1D_gain', key='gain_length', plotter='line', legend="1D gain length")
 
-    def plot_defaults(self):
+    def plot_defaults(self, show_html = False):
         '''creates bokeh plots and html file, shows automatically'''
+
         if hasattr(self, 'auto_plots'):
             pass
         else:
@@ -440,65 +579,25 @@ class Bokeh_Plotting():
         l4 = self.layout([[e_y, mean_pos],
                           [CoM_p,CoM_pz],
                           [current,std],
-                          [beta]],sizing_mode='fixed')
+                          [beta]], sizing_mode='fixed')
 
+        tab1 = self.Panel(child=l1, title="Transverse phase space")
+        tab2 = self.Panel(child=l2, title="Longitudinal phase space 1")
+        tab3 = self.Panel(child=l3, title="Longitudinal phase space 2")
+        tab4 = self.Panel(child=l4, title="Slice properties")
 
-        tab1 = self.Panel(child=l1, title="X Y ")
-        tab2 = self.Panel(child=l2, title="Z ")
-        tab3 = self.Panel(child=l3, title="transverse phase space")
-        tab4 = self.Panel(child=l4, title="Emittances")
-
-        if self.directory.__contains__('MX_gain'):
-            l5 = self.layout([[gain]], sizing_mode='fixed')
-            tab5 = self.Panel(child=l5, title="FEL params")
+        if self.dict.__contains__('MX_gain'):
+            l5 = self.layout([[gain,gain_length]], sizing_mode='fixed')
+            tab5 = self.Panel(child=l5, title="FEL parameters")
             tabs = self.Tabs(tabs=[tab1, tab2, tab3, tab4, tab5])
 
         else:
             tabs = self.Tabs(tabs=[tab1, tab2, tab3, tab4])
 
         self.curdoc().add_root(tabs)
-        self.show(tabs)
+        if show_html:
+            self.show(tabs)
 
-def plot_multi(self):
-        '''creates bokeh plots and html file, shows automatically'''
-        if hasattr(self, 'auto_plots'):
-            pass
-        else:
-            self.prepare_defaults()
-
-        for key, val in self.plots.iteritems():
-            exec(key + '=val')
-
-        l1 = self.layout([[x_y, px_py],
-                          [x_px, y_py]], sizing_mode='fixed')
-                    
-        l2 = self.layout([[z_px, z_py],
-                          [z_x, z_y]], sizing_mode='fixed')
-
-        l3 = self.layout([[pz_x, pz_y],
-                          [pz_px, pz_py]], sizing_mode='fixed')
-
-        l4 = self.layout([[e_y, mean_pos],
-                          [CoM_p,CoM_pz],
-                          [current,std],
-                          [beta]],sizing_mode='fixed')
-
-
-        tab1 = self.Panel(child=l1, title="X Y ")
-        tab2 = self.Panel(child=l2, title="Z ")
-        tab3 = self.Panel(child=l3, title="transverse phase space")
-        tab4 = self.Panel(child=l4, title="Emittances")
-        
-        if self.directory.__contains__('MX_gain'):
-            l5 = self.layout([[gain]], sizing_mode='fixed')
-            tab5 = self.Panel(child=l5, title="FEL params")
-            tabs = self.Tabs(tabs=[tab1, tab2, tab3, tab4, tab5])
-
-        else:
-            tabs = self.Tabs(tabs=[tab1, tab2, tab3, tab4])
-
-        self.curdoc().add_root(tabs)
-        self.show(tabs)
-
-x = ProcessedData('/home/daniel_b/Documents/Summer_project/beam50k_A2S.h5', 100, undulator_period=0.0275, k_fact=1)
-
+x = ProcessedData('/home/daniel_b/Documents/Summer_project/beam50k_A2S.h5', num_slices=100, undulator_period=0.0275, k_fact=1)
+y = Panda_Plotting(x)
+y.plot()
