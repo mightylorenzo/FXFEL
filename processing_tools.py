@@ -19,7 +19,7 @@ E_CH = float(1.602e-19)
 P = np.pi
 
 def fname_format(filename, addition):
-    return filename[0:-3]+'_'+addition
+    return filename+'_'+addition
 
 def beta(std_pos, emittance):
     ''' Calculates a simple approximation of the Beta
@@ -75,12 +75,12 @@ class ParticleDistribution(object):
             print('Already converted')
             pass
     def optimal_slice(self, undulator_period, k_fact):
-            res_wavelength = feq.resonant_wavelength(undulator_period,k_fact,np.average(self.dict['pz']))
+            res_wavelength = feq.resonant_wavelength(undulator_period,k_fact,np.average(self.dict['pz']))[0]
             length_std = weighted_std(self.SU_data[:, 5],self.SU_data[:, 6])
             std_x = weighted_std(self.dict['x'],self.SU_data[:, 6])
             std_y = weighted_std(self.dict['y'],self.SU_data[:, 6])
             avg_current = (np.sum(self.SU_data[:, 6])*E_CH)*c/(length_std)
-            avg_pierce = feq.pierce(k_fact,np.average(self.dict['pz']),undulator_period,current,std_x,std_y)
+            avg_pierce = feq.pierce(k_fact,np.average(self.dict['pz']),undulator_period,avg_current,std_x,std_y)
             coherence_length = feq.coherence_length(res_wavelength,avg_pierce)
             num_slices = feq.optimal_slice_no(length_std,coherence_length)
             return num_slices
@@ -338,7 +338,7 @@ class Panda_Plotting():
         self.distframe = processed_data.DistFrame()
         self.statsframe = processed_data.StatsFrame()
         self.FELframe = processed_data.FELFrame()
-        self.file_path = processed_data.filename
+        self.file_path = processed_data.filename[0:-3]
 
 
 
@@ -395,7 +395,7 @@ class Panda_Plotting():
         else:
             self.plt.show()
 
-    def plot(self):
+    def plot_defaults(self):
 
         self.prep_plot('z_pos','std_pz',
             title='Standard deviation of transverse coordinates per slice', ID='std-pz')        
@@ -420,14 +420,14 @@ class Panda_Plotting():
         self.prep_plot('y', 'py',kind='scatter', ID='ypy',title='Vertical phasespace')
         self.prep_plot('z', 'pz',kind='scatter', ID='zpz',title='Longitudinal phasespace')
         self.prep_plot('px', 'py',kind='scatter', ID='pxpy',title='Screen divergence')
-        self.prep_plot('z', 'px', 'py',kind='scatter', ID='zpx',title='Longitudinal phasespace correlations')
-        #self.prep_plot('z', 'py',kind='scatter', ID='zpy',title='')
-        self.prep_plot('z', 'x', 'y' ,kind='scatter', ID='zx',title='Longitudinal transverse position correlations')
-        #self.prep_plot('z', 'y',kind='scatter', ID='zy',title='')
-        self.prep_plot('pz', 'x','y',kind='scatter', ID='pzx',title='Energy deviation - transverse postion correlations')
-        #self.prep_plot('pz', 'y',kind='scatter', ID='pzy',title='')
-        self.prep_plot('pz', 'px', 'py', kind='scatter', ID='pzpx',title='Energy deviation - divergence correlations')
-        #self.prep_plot('pz', 'py',kind='scatter', ID='pzpy',title='')
+        self.prep_plot('z', 'px', kind='scatter', ID='zpx',title='Longitudinal horizontal phasespace correlations')
+        self.prep_plot('z', 'py',kind='scatter', ID='zpy',title='Longitudinal vertical phasespace correlations')
+        self.prep_plot('z', 'x', kind='scatter', ID='zx',title='Longitudinal and horizontal position correlations')
+        self.prep_plot('z', 'y',kind='scatter', ID='zy',title='Longitudinal and vertical  position correlations')
+        self.prep_plot('pz', 'x', kind='scatter', ID='pzx',title='Energy deviation - horizontal postion correlations')
+        self.prep_plot('pz', 'y',kind='scatter', ID='pzy',title='Energy deviation - vertical postion correlations')
+        self.prep_plot('pz', 'px', kind='scatter', ID='pzpx',title='Energy deviation - horizontal divergence correlations')
+        self.prep_plot('pz', 'py',kind='scatter', ID='pzpy',title='Energy deviation - vertical divergence correlations')
         
         
 
@@ -437,8 +437,8 @@ class Bokeh_Plotting():
         for the generation of a html with all plots'''
 
     def __init__(self, SU_distribution):
-        from bokeh.plotting import figure, save #So not to be unusable if bokeh is not
-        from bokeh.io import output_file, show, curdoc #on the system
+        from bokeh.plotting import figure #So not to be unusable if bokeh is not
+        from bokeh.io import output_file, show, curdoc, save #on the system
         from bokeh.layouts import layout
         from bokeh.models import Tabs, Panel
         #from bokeh.models import Range1d
@@ -451,7 +451,7 @@ class Bokeh_Plotting():
         self.layout, self.Tabs, self.Panel = (layout, Tabs, Panel)
 
     def custom_plot(self, x_axis, y_axis, key='', plotter='circle', color='green',
-                    file_name=False, text_color='black', legend=False, title=True, save_png = False):
+                    file_name=False, text_color='black', legend=False, title=True, save = False):
 
         '''Takes two strings from dict and plots x,y with circles or line plot
         direct call = True creates '''
@@ -498,9 +498,9 @@ class Bokeh_Plotting():
             key = x_axis+'_'+y_axis
         
         self.plots.update({key:p})
-        if save_png:
-            from bokeh.io import export_png
-            export_png(p,key)
+        if save:
+            l = self.layout([p])
+            self.save(l,key)
         return p
 
     def prepare_defaults(self, file_name=False):
@@ -598,6 +598,6 @@ class Bokeh_Plotting():
         if show_html:
             self.show(tabs)
 
-x = ProcessedData('/home/daniel_b/Documents/Summer_project/beam50k_A2S.h5', num_slices=100, undulator_period=0.0275, k_fact=1)
-y = Panda_Plotting(x)
-y.plot()
+# x = ProcessedData('/home/daniel_b/Documents/Summer_project/beam50k_A2S.h5', num_slices=100, undulator_period=0.0275, k_fact=1)
+# y = Panda_Plotting(x)
+# y.plot()

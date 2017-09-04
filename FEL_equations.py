@@ -107,9 +107,9 @@ def pierce(k_fact, gamma_res, undulator_period, current, std_x, std_y):
     pierce_par = pierce_par*(np.power(undulator_period, 2))/\
                 (2*const.pi*std_x*std_y)
     pierce_par = (pierce_par*K_JJ2/(32*const.pi))**(1.0/3.0)
-    gain_length = (undulator_period/(4*const.pi*np.sqrt(3.0)*pierce))
+    gain_length = (undulator_period/(4*const.pi*np.sqrt(3.0)*pierce_par))
 
-    return pierce, gain_length
+    return pierce_par, gain_length
 
 
 
