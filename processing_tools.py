@@ -75,15 +75,17 @@ class ParticleDistribution(object):
             print('Already converted')
             pass
     def optimal_slice(self, undulator_period, k_fact):
-            res_wavelength = feq.resonant_wavelength(undulator_period,k_fact,np.average(self.dict['pz']))[0]
-            length_std = weighted_std(self.SU_data[:, 5],self.SU_data[:, 6])
-            std_x = weighted_std(self.dict['x'],self.SU_data[:, 6])
-            std_y = weighted_std(self.dict['y'],self.SU_data[:, 6])
-            avg_current = (np.sum(self.SU_data[:, 6])*E_CH)*c/(length_std)
-            avg_pierce = feq.pierce(k_fact,np.average(self.dict['pz']),undulator_period,avg_current,std_x,std_y)
-            coherence_length = feq.coherence_length(res_wavelength,avg_pierce)
-            num_slices = feq.optimal_slice_no(length_std,coherence_length)
-            return num_slices
+        '''Attempts to give optimal slice number, but may be an incorrect implementation'''
+        res_wavelength = feq.resonant_wavelength(undulator_period,k_fact,np.average(self.dict['pz']))[0]
+        length_std = weighted_std(self.SU_data[:, 5],self.SU_data[:, 6])
+        std_x = weighted_std(self.dict['x'],self.SU_data[:, 6])
+        std_y = weighted_std(self.dict['y'],self.SU_data[:, 6])
+        avg_current = (np.sum(self.SU_data[:, 6])*E_CH)*c/(length_std)
+        avg_pierce = feq.pierce(k_fact,np.average(self.dict['pz']),undulator_period,avg_current,std_x,std_y)[0]
+        coherence_length = feq.coherence_length(res_wavelength,avg_pierce)
+        num_slices = feq.optimal_slice_no(length_std,coherence_length)
+        return num_slices
+
     def DistFrame(self):
         dist_dir = ('x', 'pz', 'y', 'x', 'py', 'px', 'z', 'NE')
         dist_dir = {k: self.dict[k] for k in dist_dir}
@@ -105,7 +107,9 @@ class Statistics(ParticleDistribution):
         '''set data slicing for use in certain routines if needed,
         returns 'self.dict['z_pos']' as array with z positions and self.dict['slice_keys']
         with boolean arrays for use in operations'''
-
+# This makes slices of equal length, but if another method is required, the rest of the code requires that 
+# slice keys be a boolean array of length equal to the particle distribution with true for the particles 
+#wanted in a given slice
         self.dict['Num_Slices'] = Num_Slices
         self.dict['Step_Z'] = (np.max(self.SU_data[:, 4])-np.min(self.SU_data[:, 4]))/\
                                     self.dict['Num_Slices']
@@ -116,7 +120,7 @@ class Statistics(ParticleDistribution):
         for slice_no in xrange(self.dict['Num_Slices']):
             z_low = np.min(self.SU_data[:, 4])+(slice_no*self.dict['Step_Z'])
             z_high = np.min(self.SU_data[:, 4])+((slice_no+1)*self.dict['Step_Z'])
-            z_pos = (z_high+z_low)/2.0
+            z_pos = (z_high+z_low)/2.0  #routine that calculates the z position at the center of the slice
             self.dict['z_pos'][slice_no] = z_pos
             self.dict['slice_keys'][slice_no] = np.array((self.SU_data[:, 4] >= z_low) &\
                                                      (self.SU_data[:, 4] < z_high), dtype=bool)
@@ -330,6 +334,7 @@ class ProcessedData(FEL_Approximations):
 
 
 class Panda_Plotting():
+    '''Class to quickly create pandas/matplotlib plots from a Processed_Data object'''
     def __init__(self, processed_data):
         import matplotlib.pyplot as plt
         import matplotlib.ticker as ticker
@@ -344,7 +349,8 @@ class Panda_Plotting():
 
     def prep_plot(self, x_axis, y_ax_1, y_ax_2=False, title=None, kind='line',
                   log=False, ID=None, x_label=False, y_label=False, show=False):
-
+        '''Plotting routine - can plot up to two variables on one graph, log turns on logarithmic scale 
+        on y axis, other entries are self explanatory'''
 
 
         
@@ -396,7 +402,7 @@ class Panda_Plotting():
             self.plt.show()
 
     def plot_defaults(self):
-
+        '''Plots the default selection of plots to png files'''
         self.prep_plot('z_pos','std_pz',
             title='Standard deviation of transverse coordinates per slice', ID='std-pz')        
         self.prep_plot('z_pos','std_x','std_y',
@@ -504,6 +510,10 @@ class Bokeh_Plotting():
         return p
 
     def prepare_defaults(self, file_name=False):
+        '''
+        Prepares the default plots that will then be plotted by plot_defaults 
+        Modifying this does not automatically alter the layout, so this must be added in manually
+        '''
         if not self.SU_distribution.SI:
             self.SU_distribution.su2si()
             n = int(raw_input('Enter number of slices (integer): '))
@@ -595,6 +605,7 @@ class Bokeh_Plotting():
             tabs = self.Tabs(tabs=[tab1, tab2, tab3, tab4])
 
         self.curdoc().add_root(tabs)
+        self.save(tabs,self.SU_distribution.filename[:-3]+'.html')
         if show_html:
             self.show(tabs)
 
