@@ -419,7 +419,6 @@ class Panda_Plotting():
             'Transverse slice emittance', ID='em')
         self.prep_plot('z_pos','beta_x','beta_y',
             'Beta function per slice', ID='beta')
-        self.prep_plot
 
         self.prep_plot('x', 'y',kind='scatter', ID='xy',title='Transverse postitions')
         self.prep_plot('x', 'px',kind='scatter', ID='xpx',title='Horizontal phases pace')
@@ -434,6 +433,7 @@ class Panda_Plotting():
         self.prep_plot('pz', 'y',kind='scatter', ID='pzy',title='Energy deviation - vertical postion correlations')
         self.prep_plot('pz', 'px', kind='scatter', ID='pzpx',title='Energy deviation - horizontal divergence correlations')
         self.prep_plot('pz', 'py',kind='scatter', ID='pzpy',title='Energy deviation - vertical divergence correlations')
+        # to add more defaults, just add more prep plot functions to here with the required data
         
         
 
@@ -460,7 +460,7 @@ class Bokeh_Plotting():
                     file_name=False, text_color='black', legend=False, title=True, save = False):
 
         '''Takes two strings from dict and plots x,y with circles or line plot
-        direct call = True creates '''
+        this is saved in a dictionary called 'plots' which contains key:plot_object '''
 
         axis_titles = {'x':'X position', 'px':'X momentum', 'y':'Y position',
                        'py':'Y momentum', 'z':'Z position', 'pz':'Z momentum',
@@ -506,7 +506,11 @@ class Bokeh_Plotting():
         self.plots.update({key:p})
         if save:
             l = self.layout([[p]])
-            self.save(l,key)
+            if not file_name:
+                self.save(l,key)
+            else:
+                self.save(l,file_name) 
+
         return p
 
     def prepare_defaults(self, file_name=False):
@@ -566,6 +570,7 @@ class Bokeh_Plotting():
             FEL_gain = self.custom_plot('slice_z','MX_gain', key='gain', plotter='line', legend='Ming Xie gain')
             gain_length = self.custom_plot('slice_z', '1D_gain', key='gain_length', plotter='line', legend="1D gain length")
 
+        #To add more simply add more lines in the format above, code must beedited below to display this
     def plot_defaults(self, show_html = False):
         '''creates bokeh plots and html file, shows automatically'''
 
@@ -576,7 +581,7 @@ class Bokeh_Plotting():
 
         for key, val in self.plots.iteritems():
             exec(key + '=val')
-
+        #creates a temporary variable for each entry in the plot dictionary, simply for ease of use here
         l1 = self.layout([[x_y, px_py],
                           [x_px, y_py]], sizing_mode='fixed')
                     
@@ -609,6 +614,5 @@ class Bokeh_Plotting():
         if show_html:
             self.show(tabs)
 
-# x = ProcessedData('/home/daniel_b/Documents/Summer_project/beam50k_A2S.h5', num_slices=100, undulator_period=0.0275, k_fact=1)
-# y = Panda_Plotting(x)
-# y.plot()
+        #an arbitrary number of tabs and plots can be added, first by adding it to a layout, creating a panel and finally 
+        #adding the panel to a tab and adding that tab to a page
