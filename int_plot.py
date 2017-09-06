@@ -26,32 +26,26 @@ import processing_tools as pt
 
 
 
-
-
-
-filenames = ['/home/daniel_b/Documents/Summer_project/noise_10kSI_MASP.h5',
-             '/home/daniel_b/Documents/Summer_project/noise_10kSI_MASP.h5',
-             '/home/daniel_b/Documents/Summer_project/noise_10kSI_MASP.h5']
-files_2 = ['/home/daniel_b/Documents/Summer_project/beam50k_A2S.h5', 
-           '/home/daniel_b/Documents/Summer_project/beam50k_A2S.h5',
-           '/home/daniel_b/Documents/Summer_project/beam50k_A2S.h5']
-
-
-def interactive_plot(filenames,x_axis,y_axis,num_slices=100, undulator_period=0.0275):
+def interactive_plot(filenames,x_axis,y_axis,num_slices=100, undulator_period=0.0275,k_fact=1):
+    ''' Creates an interactive plot that slides throuigh a list of files
+    uses java magic and is more for convenience/one offs as exporting these plots 
+    tends to break a few things'''
     sources = {}
 
     data_array = []
-
+    obj_array = [0]*len(filenames)
     for i, filename in enumerate(filenames):
-        filenames[i] = pt.ProcessedData(filename, num_slices=num_slices, undulator_period=undulator_period)
+        obj_array[i] = pt.ProcessedData(filename, num_slices=num_slices, undulator_period=undulator_period, k_fact=k_fact)
         if x_axis != 'z_pos':
-            data_array.append(filenames[i].DistFrame())
+            data_array.append(obj_array[i].DistFrame())
+        if y_axis == 'MX_gain' or y_axis == '1D_gain' or y_axis == 'pierce':
+            data_array.append(obj_array[i].FELFrame())
         else:
-            data_array.append(filenames[i].StatsFrame())
-            #data_array.append(filenames[i].FELFrame())
+            data_array.append(obj_array[i].StatsFrame())
 
     sections = range(len(data_array))
-    rng_x, rng_y = [9999,0], [99999,0]
+    rng_x, rng_y = [9999.0,-9999.0], [99999.0,-9999.0]
+    
     for i in data_array:
         if i[x_axis].max() > rng_x[1]:
             rng_x[1] = i[x_axis].max()
@@ -178,3 +172,4 @@ def interactive_plot(filenames,x_axis,y_axis,num_slices=100, undulator_period=0.
     callback.args["slider"] = slider
 
     return layout([[plot], [slider]], sizing_mode='scale_width')
+

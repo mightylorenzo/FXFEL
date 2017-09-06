@@ -505,7 +505,7 @@ class Bokeh_Plotting():
         
         self.plots.update({key:p})
         if save:
-            l = self.layout([p])
+            l = self.layout([[p]])
             self.save(l,key)
         return p
 

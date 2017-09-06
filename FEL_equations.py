@@ -20,9 +20,13 @@ def undulator_parameter(magnetic_field, undulator_period):
 
 
 def coherence_length(wavelength, pierce):
+    '''1D approximation of coherence length from pierce parameter'''
     return float(wavelength)/(4*np.pi*np.sqrt(3)*pierce)
 
 def optimal_slice_no(rms_length, coherence_length):
+    '''Returns a float of a simple approximation to the optimal slice length
+    
+    this is simply the rms length of the bunch over the coherence length *2pi'''
     return float(rms_length)/(2*np.pi*coherence_length)
 
 def EM_charge_coupling(K_factor, m=1):
@@ -74,6 +78,8 @@ def normalized_electron_energy(resonant_e_energy, electron_energy):
 
 
 def ming_xie_factor(nd, ne, ny):
+    '''simply calculates the ming xie polynomial, the program expoects a scalar to be returned
+    but arrays of values can also be processed'''
     sp = np.array([0.45, 0.57, 0.55, 1.6, 3.0, 2.0,
           0.35, 2.9, 2.4, 51.0, 0.95, 3.0, 5.4,
           0.7, 1.9, 1140.0, 2.2, 2.9, 3.2])
@@ -94,7 +100,7 @@ def scaled_e_spread(e_spread, gain_length, undulator_period):
 def scaled_transverse_size(transverse_size, gain_length, wavelength):
     return np.array([gain_length*wavelength/(4*const.pi*transverse_size**2)])
 
-def scaled_emittance(emittance, gain_length, wavelength,beta):
+def scaled_emittance(emittance, gain_length, wavelength, beta):
     return np.array([(4*const.pi*emittance*gain_length)/(beta*wavelength)])
 
 
