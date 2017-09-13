@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Aug 12 08:33:38 2016
-
-@author: daniel bultrini
+# Copyright (c) 2012-2017, University of Strathclyde
+# Authors: Daniel Bultrini
+# License: BSD-3-Clause
 """
 import scipy.constants as const
 import numpy as np
