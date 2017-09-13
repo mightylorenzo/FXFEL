@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-
-#
-#Author: Daniel Bultrini, danielbultrini@gmail.calc_CoM
-#
-
+"""
+# Copyright (c) 2012-2017, University of Strathclyde
+# Authors: Daniel Bultrini
+# License: BSD-3-Clause
+"""
 
 import numpy as np
 import pandas as pd
