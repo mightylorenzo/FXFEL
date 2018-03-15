@@ -45,7 +45,7 @@ def move_plots(directory):
             shutil.move(files, new_dir)
 
 def plot_defaults(directory, file_ending='.h5',
-                  undulator_period=0.00275, peak_field=0,
+                  undulator_period=0.0275, peak_field=0,
                   k_fact=1, num_slices=False):
     '''Plots every file in a directory and moves it into a folder'''
     make_directories(directory, file_ending='.h5')

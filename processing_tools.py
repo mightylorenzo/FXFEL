@@ -67,24 +67,39 @@ class ParticleDistribution(object):
     def su2si(self):
         '''Converts data to SI if needed'''
         if not self.SI:
-            self.SU_data[:, 1] = self.SU_data[:, 1]*(m*c)
-            self.SU_data[:, 3] = self.SU_data[:, 3]*(m*c)
-            self.SU_data[:, 5] = self.SU_data[:, 5]*(m*c)
+            #print 'av px b4 = ', np.average(self.SU_data[:, 1])
+            #print 'av py b4 = ', np.average(self.SU_data[:, 3])
+            #print 'av pz b4 = ', np.average(self.SU_data[:, 5])
+            self.SU_data[:, 1] = self.SU_data[:, 1]*(m*c) #/E_CH
+            self.SU_data[:, 3] = self.SU_data[:, 3]*(m*c) #/E_CH
+            self.SU_data[:, 5] = self.SU_data[:, 5]*(m*c) #/E_CH
             self.SI = True
+            #print 'av px after = ', np.average(self.SU_data[:, 1])
+            #print 'av py after = ', np.average(self.SU_data[:, 3])
+            #print 'av pz after = ', np.average(self.SU_data[:, 5])
         else:
             print('Already converted')
             pass
     def optimal_slice(self, undulator_period, k_fact):
         '''Attempts to give optimal slice number, but may be an incorrect implementation'''
-        res_wavelength = feq.resonant_wavelength(undulator_period,k_fact,np.average(self.dict['pz']))[0]
-        length_std = weighted_std(self.SU_data[:, 5],self.SU_data[:, 6])
+        p_tot=np.sqrt((self.SU_data[:, 1]**2)+(self.SU_data[:, 3]**2)+(self.SU_data[:, 5]**2)) #* E_CH**2
+        gamma=(np.sqrt(1+(p_tot/(m*c))**2))
+        res_wavelength = feq.resonant_wavelength(undulator_period,k_fact,np.average(gamma))[0]
+        #print 'lambda_r = ' + str(res_wavelength)
+        #print 'gamma0 = ' + str(np.average(gamma))
+        #print 'ave pz = ' + str(np.average(self.dict['pz']) / (m*c**2) )
+        length_std = weighted_std(self.SU_data[:, 4],self.SU_data[:, 6])
         std_x = weighted_std(self.dict['x'],self.SU_data[:, 6])
         std_y = weighted_std(self.dict['y'],self.SU_data[:, 6])
         avg_current = (np.sum(self.SU_data[:, 6])*E_CH)*c/(length_std)
-        avg_pierce = feq.pierce(k_fact,np.average(self.dict['pz']),undulator_period,avg_current,std_x,std_y)[0]
+        #print 'avg_current = ' + str(avg_current)
+        #print 'length_std = ' + str(length_std)
+        avg_pierce = feq.pierce(k_fact,np.average(gamma),undulator_period,avg_current,std_x,std_y)[0]
         coherence_length = feq.coherence_length(res_wavelength,avg_pierce)
         num_slices = feq.optimal_slice_no(length_std,coherence_length)
-        return num_slices
+        #num_slices = 100
+        #print 'num slices = ' + str(num_slices)
+        return np.int_(num_slices)
 
     def DistFrame(self):
         dist_dir = ('x', 'pz', 'y', 'x', 'py', 'px', 'z', 'NE')
@@ -324,6 +339,8 @@ class ProcessedData(FEL_Approximations):
         if not num_slices:
             warnings.warn('did not specify slice number, will slice by estimated coherence length')
             num_slices = self.optimal_slice(undulator_period,k_fact)
+            #print 'num_slices = ' + str(num_slices)
+            self.slice(num_slices)
         else:
             self.slice(num_slices)
         self.calc_emittance()
