@@ -70,9 +70,9 @@ class ParticleDistribution(object):
             #print 'av px b4 = ', np.average(self.SU_data[:, 1])
             #print 'av py b4 = ', np.average(self.SU_data[:, 3])
             #print 'av pz b4 = ', np.average(self.SU_data[:, 5])
-            self.SU_data[:, 1] = self.SU_data[:, 1]*(m*c) #/E_CH
-            self.SU_data[:, 3] = self.SU_data[:, 3]*(m*c) #/E_CH
-            self.SU_data[:, 5] = self.SU_data[:, 5]*(m*c) #/E_CH
+            self.SU_data[:, 1] = self.SU_data[:, 1]#*(m*c) #/E_CH
+            self.SU_data[:, 3] = self.SU_data[:, 3]#*(m*c) #/E_CH
+            self.SU_data[:, 5] = self.SU_data[:, 5]#*(m*c) #/E_CH
             self.SI = True
             #print 'av px after = ', np.average(self.SU_data[:, 1])
             #print 'av py after = ', np.average(self.SU_data[:, 3])
@@ -83,7 +83,8 @@ class ParticleDistribution(object):
     def optimal_slice(self, undulator_period, k_fact):
         '''Attempts to give optimal slice number, but may be an incorrect implementation'''
         p_tot=np.sqrt((self.SU_data[:, 1]**2)+(self.SU_data[:, 3]**2)+(self.SU_data[:, 5]**2)) #* E_CH**2
-        gamma=(np.sqrt(1+(p_tot/(m*c))**2))
+        #gamma=(np.sqrt(1+(p_tot/(m*c))**2))
+        gamma=(np.sqrt(1+(p_tot)**2))
         res_wavelength = feq.resonant_wavelength(undulator_period,k_fact,np.average(gamma))[0]
         #print 'lambda_r = ' + str(res_wavelength)
         #print 'gamma0 = ' + str(np.average(gamma))
@@ -163,8 +164,10 @@ class Statistics(ParticleDistribution):
             py_2 = ((np.sum(m_mOmy*m_mOmy))/len(m_mOmy))-(np.mean(m_mOmy))**2.0                    #
             ypy = np.sum(m_POSy*m_mOmy)/len(m_POSy)-np.sum(m_POSy)*np.sum(m_mOmy)/(len(m_POSy))**2 #
                                                                                                    #
-            self.dict['e_x'][i] = (1.0/(m*c))*np.sqrt((x_2*px_2)-(xpx*xpx))                        #
-            self.dict['e_y'][i] = (1.0/(m*c))*np.sqrt((y_2*py_2)-(ypy*ypy))                        #
+            #self.dict['e_x'][i] = (1.0/(m*c))*np.sqrt((x_2*px_2)-(xpx*xpx))                        #
+            #self.dict['e_y'][i] = (1.0/(m*c))*np.sqrt((y_2*py_2)-(ypy*ypy))                        #
+            self.dict['e_x'][i] = np.sqrt((x_2*px_2)-(xpx*xpx))                        #
+            self.dict['e_y'][i] = np.sqrt((y_2*py_2)-(ypy*ypy))
             ########################################################################################
 
     def calc_CoM(self):
@@ -272,7 +275,7 @@ class FEL_Approximations(Statistics):
             self.dict['K_fact'] = float(k_fact)
 
         self.dict['undulator_period'] = undulator_period
-        self.dict['gamma_res'] = feq.resonant_electron_energy(np.average(self.dict['CoM_pz'])*c, 0)
+        self.dict['gamma_res'] = feq.resonant_electron_energy(np.average(self.dict['CoM_pz'])*m*c*c, 0)
         self.dict['wavelength_res'] = feq.resonant_wavelength(
             undulator_period, self.dict['K_fact'], self.dict['gamma_res'])
 
@@ -311,12 +314,12 @@ class FEL_Approximations(Statistics):
                        self.dict['beta_x'])):
 
             rho, gain = self.pierce(i)
-            ne = float(feq.scaled_e_spread(
+            ny = float(feq.scaled_e_spread(
                 std_pz/CoM_pz, gain, self.dict['undulator_period']))
             nd = float(feq.scaled_transverse_size(
                 std_x, gain, self.dict['wavelength_res'][0]))
-            ny = float(feq.scaled_emittance(
-                e_x, gain, self.dict['wavelength_res'][0], beta_x))
+            ne = float(feq.scaled_emittance(
+                e_x / CoM_pz, gain, self.dict['wavelength_res'][0], beta_x))
 
             self.dict['pierce'][i] = rho
             self.dict['1D_gain'][i] = gain
@@ -476,6 +479,8 @@ class Bokeh_Plotting():
     def custom_plot(self, x_axis, y_axis, key='', plotter='circle', color='green',
                     file_name=False, text_color='black', legend=False, title=True, save = False):
 
+        from bokeh.models import Range1d
+
         '''Takes two strings from dict and plots x,y with circles or line plot
         this is saved in a dictionary called 'plots' which contains key:plot_object '''
 
@@ -506,7 +511,15 @@ class Bokeh_Plotting():
 
         if not legend:
             if plotter == 'circle':
-                p.circle(x_data, y_data, color=color)
+                # assuming particles in this case...
+                if (len(x_data) > 10):
+                    counts,xbins,ybins=np.histogram2d(x_data,y_data,bins=150,weights=self.dict['NE'])
+                    p.image(image=[counts.transpose()], x=xbins[0], y=ybins[0], dw=xbins[-1]-xbins[0], dh=ybins[-1]-ybins[0], dilate=True, palette="Spectral11")
+                    #p.image(image=[counts], x=xbins[0], y = ybins[0], dw=1, dh=1, palette="Spectral11")
+                    p.x_range=Range1d(xbins[0], xbins[-1])
+                    p.y_range=Range1d(ybins[0], ybins[-1])
+                else:
+                    p.circle(x_data, y_data, color=color)
             elif plotter == 'line':
                 p.line(x_data, y_data, color=color)
 
@@ -603,7 +616,8 @@ class Bokeh_Plotting():
                           [x_px, y_py]], sizing_mode='fixed')
                     
         l2 = self.layout([[z_px, z_py],
-                          [z_x, z_y]], sizing_mode='fixed')
+                          [z_x, z_y], 
+                          [z_pz]], sizing_mode='fixed')
 
         l3 = self.layout([[pz_x, pz_y],
                           [pz_px, pz_py]], sizing_mode='fixed')
@@ -622,6 +636,7 @@ class Bokeh_Plotting():
             l5 = self.layout([[gain,gain_length]], sizing_mode='fixed')
             tab5 = self.Panel(child=l5, title="FEL parameters")
             tabs = self.Tabs(tabs=[tab1, tab2, tab3, tab4, tab5])
+            #tabs = self.Tabs(tabs=[tab1, tab4, tab5])
 
         else:
             tabs = self.Tabs(tabs=[tab1, tab2, tab3, tab4])
