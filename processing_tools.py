@@ -405,9 +405,20 @@ class Panda_Plotting():
         alpha = 1
         if kind == 'scatter':
             alpha = 0.05
-
+        
         fig, ax = self.plt.subplots(1,1)
-        dataset.plot(ax=ax, x=x_axis, y=y_ax_1, title=title, kind=kind, color='b',xlim=rng_x,ylim=rng_y, alpha=alpha, label=y_ax_1)
+        
+        if kind == 'scatter':
+            if len(dataset[x_axis]) > 10:
+                counts,xbins,ybins=np.histogram2d(dataset[x_axis],dataset[y_ax_1],bins=150,weights=dataset['NE'])
+                asp = (xbins[-1] - xbins[0]) / (ybins[-1] - ybins[0])
+                self.plt.imshow(counts.T, origin = 'lower', extent=[xbins[0], xbins[-1], ybins[0], ybins[-1]], aspect=asp) # , interpolation = 'bicubic')
+                self.plt.xlabel(x_axis)
+                self.plt.ylabel(y_ax_1)
+            else:
+                dataset.plot(ax=ax, x=x_axis, y=y_ax_1, title=title, kind=kind, color='b',xlim=rng_x,ylim=rng_y, alpha=alpha, label=y_ax_1)
+        else:
+            dataset.plot(ax=ax, x=x_axis, y=y_ax_1, title=title, kind=kind, color='b',xlim=rng_x,ylim=rng_y, alpha=alpha, label=y_ax_1)
 
 
         if y_ax_2:
@@ -416,7 +427,7 @@ class Panda_Plotting():
             pass
 
         if not show:
-            fig.savefig(fname_format(self.file_path,ID))
+            fig.savefig(fname_format(self.file_path,ID), dpi = 150)
             self.plt.close(fig)
         else:
             self.plt.show()
