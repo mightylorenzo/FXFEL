@@ -25,9 +25,25 @@ def beta(std_pos, emittance):
     ''' Calculates a simple approximation of the Beta
     function for a slice given standard deviation of position and
     slice emittance'''
-    calc = (np.sqrt(4*np.log(2))*std_pos)
-    calc = np.power(calc , 2)
+    #calc = (np.sqrt(4*np.log(2))*std_pos)
+    #calc = np.power(calc , 2)
+    calc = np.power(std_pos , 2)
     calc = np.divide(calc, emittance)
+
+    return calc
+
+#def talpha(xpx_cor, emittance):
+def talpha(xpx_cor, beta):
+    ''' Calculates a simple approximation of the alpha
+    function for a slice given standard deviation of position and
+    slice emittance'''
+
+    #calc = - (4.*np.log(2.) * xpx_cor) / emittance
+    calc = -1. * xpx_cor * beta
+
+#    calc = (np.sqrt(4*np.log(2))*std_pos)
+#    calc = np.power(calc , 2)
+#    calc = np.divide(calc, emittance)
 
     return calc
 
@@ -152,23 +168,94 @@ class Statistics(ParticleDistribution):
 
         for i, comparison in enumerate(self.dict['slice_keys']):
             m_POSx = self.SU_data[:, 0][comparison]
-            m_mOmx = self.SU_data[:, 1][comparison]
+            m_mOmx = self.SU_data[:, 1][comparison] / self.SU_data[:, 5][comparison]
             m_POSy = self.SU_data[:, 2][comparison]
-            m_mOmy = self.SU_data[:, 3][comparison]
+            m_mOmy = self.SU_data[:, 3][comparison] / self.SU_data[:, 5][comparison]
+            wts = self.SU_data[:, 6][comparison]
+            
             ###########~~Code by Piotr Traczykowski~~###############################################
-            x_2 = ((np.sum(m_POSx*m_POSx))/len(m_POSx))-(np.mean(m_POSx))**2.0                     #
-            px_2 = ((np.sum(m_mOmx*m_mOmx))/len(m_mOmx))-(np.mean(m_mOmx))**2.0                    #
-            xpx = np.sum(m_POSx*m_mOmx)/len(m_POSx)-np.sum(m_POSx)*np.sum(m_mOmx)/(len(m_POSx))**2 #
+            x_2 = ((np.sum(wts*m_POSx*m_POSx))/np.sum(wts))-(np.average(m_POSx, weights=wts))**2.0                     #
+            px_2 = ((np.sum(wts*m_mOmx*m_mOmx))/np.sum(wts))-(np.average(m_mOmx, weights=wts))**2.0                    #
+            xpx = np.sum(wts*m_POSx*m_mOmx)/np.sum(wts)-np.sum(wts*m_POSx)*np.sum(wts*m_mOmx)/(np.sum(wts))**2 #
                                                                                                    #
-            y_2 = ((np.sum(m_POSy*m_POSy))/len(m_POSy))-(np.mean(m_POSy))**2.0                     #
-            py_2 = ((np.sum(m_mOmy*m_mOmy))/len(m_mOmy))-(np.mean(m_mOmy))**2.0                    #
-            ypy = np.sum(m_POSy*m_mOmy)/len(m_POSy)-np.sum(m_POSy)*np.sum(m_mOmy)/(len(m_POSy))**2 #
+            y_2 = ((np.sum(wts*m_POSy*m_POSy))/np.sum(wts))-(np.average(m_POSy, weights=wts))**2.0                     #
+            py_2 = ((np.sum(wts*m_mOmy*m_mOmy))/np.sum(wts))-(np.average(m_mOmy, weights=wts))**2.0                    #
+            ypy = np.sum(wts*m_POSy*m_mOmy)/np.sum(wts)-np.sum(wts*m_POSy)*np.sum(wts*m_mOmy)/(np.sum(wts))**2 #
                                                                                                    #
             #self.dict['e_x'][i] = (1.0/(m*c))*np.sqrt((x_2*px_2)-(xpx*xpx))                        #
             #self.dict['e_y'][i] = (1.0/(m*c))*np.sqrt((y_2*py_2)-(ypy*ypy))                        #
             self.dict['e_x'][i] = np.sqrt((x_2*px_2)-(xpx*xpx))                        #
             self.dict['e_y'][i] = np.sqrt((y_2*py_2)-(ypy*ypy))
             ########################################################################################
+
+    def calc_emittanceG(self):
+        '''Returns the global (integrated) emittance'''
+
+        m_POSx = self.SU_data[:, 0]
+        m_mOmx = self.SU_data[:, 1] / self.SU_data[:, 5]
+        m_POSy = self.SU_data[:, 2]
+        m_mOmy = self.SU_data[:, 3] / self.SU_data[:, 5]
+        wts = self.SU_data[:, 6]
+
+
+        x_2 = ((np.sum(wts*m_POSx*m_POSx))/np.sum(wts))-(np.average(m_POSx, weights=wts))**2.0                     #
+        px_2 = ((np.sum(wts*m_mOmx*m_mOmx))/np.sum(wts))-(np.average(m_mOmx, weights=wts))**2.0                    #
+        xpx = np.sum(wts*m_POSx*m_mOmx)/np.sum(wts)-np.sum(wts*m_POSx)*np.sum(wts*m_mOmx)/(np.sum(wts))**2 #
+                                                                                                   #
+        y_2 = ((np.sum(wts*m_POSy*m_POSy))/np.sum(wts))-(np.average(m_POSy, weights=wts))**2.0                     #
+        py_2 = ((np.sum(wts*m_mOmy*m_mOmy))/np.sum(wts))-(np.average(m_mOmy, weights=wts))**2.0                    #
+        ypy = np.sum(wts*m_POSy*m_mOmy)/np.sum(wts)-np.sum(wts*m_POSy)*np.sum(wts*m_mOmy)/(np.sum(wts))**2 #
+
+        exf = np.sqrt((x_2*px_2)-(xpx*xpx))
+        eyf = np.sqrt((y_2*py_2)-(ypy*ypy))
+
+        return exf, eyf
+
+    def calc_xpxypy(self):
+        '''returns x-xp and y-yp correlations'''
+
+        xpx, ypy = \
+            np.empty(self.dict['Num_Slices']), np.empty(self.dict['Num_Slices'])
+
+        for i, comparison in enumerate(self.dict['slice_keys']):
+            m_POSx = self.SU_data[:, 0][comparison]
+            m_mOmx = self.SU_data[:, 1][comparison] / self.SU_data[:, 5][comparison]
+            m_POSy = self.SU_data[:, 2][comparison]
+            m_mOmy = self.SU_data[:, 3][comparison] / self.SU_data[:, 5][comparison]
+            wts = self.SU_data[:, 6][comparison]
+
+            x_2 = ((np.sum(wts*m_POSx*m_POSx))/np.sum(wts))-(np.average(m_POSx, weights=wts))**2.0
+            y_2 = ((np.sum(wts*m_POSy*m_POSy))/np.sum(wts))-(np.average(m_POSy, weights=wts))**2.0
+
+            xpx[i] = np.sum(wts*m_POSx*m_mOmx)/np.sum(wts)-np.sum(wts*m_POSx)*np.sum(wts*m_mOmx)/(np.sum(wts))**2
+            ypy[i] = np.sum(wts*m_POSy*m_mOmy)/np.sum(wts)-np.sum(wts*m_POSy)*np.sum(wts*m_mOmy)/(np.sum(wts))**2
+
+            xpx[i] = xpx[i] / x_2
+            ypy[i] = ypy[i] / y_2
+
+        return xpx, ypy
+
+
+    def calc_xpxypyG(self):
+        '''returns the global x-xp and y-yp correlations'''
+
+        m_POSx = self.SU_data[:, 0]
+        m_mOmx = self.SU_data[:, 1] / self.SU_data[:, 5]
+        m_POSy = self.SU_data[:, 2]
+        m_mOmy = self.SU_data[:, 3] / self.SU_data[:, 5]
+        wts = self.SU_data[:, 6]
+
+        x_2 = ((np.sum(wts*m_POSx*m_POSx))/np.sum(wts))-(np.average(m_POSx, weights=wts))**2.0
+        y_2 = ((np.sum(wts*m_POSy*m_POSy))/np.sum(wts))-(np.average(m_POSy, weights=wts))**2.0
+
+        xpx = np.sum(wts*m_POSx*m_mOmx)/np.sum(wts)-np.sum(wts*m_POSx)*np.sum(wts*m_mOmx)/(np.sum(wts))**2
+        ypy = np.sum(wts*m_POSy*m_mOmy)/np.sum(wts)-np.sum(wts*m_POSy)*np.sum(wts*m_mOmy)/(np.sum(wts))**2
+
+        xpx = xpx / x_2
+        ypy = ypy / y_2
+
+        return xpx, ypy
+
 
     def calc_CoM(self):
         '''Returns the weighted average positions in
@@ -214,6 +301,33 @@ class Statistics(ParticleDistribution):
         self.dict['beta_x'] = beta(self.dict['std_x'], self.dict['e_x'])
         self.dict['beta_y'] = beta(self.dict['std_y'], self.dict['e_y'])
 
+        xpx, ypy = self.calc_xpxypy()
+
+        #self.dict['alpha_x'] = talpha(xpx, self.dict['e_x'])
+        #self.dict['alpha_y'] = talpha(ypy, self.dict['e_y'])
+
+        self.dict['alpha_x'] = talpha(xpx, self.dict['beta_x'])
+        self.dict['alpha_y'] = talpha(ypy, self.dict['beta_y'])
+
+        #    TEMP CALCULATE GLOBAL TWISS
+
+        exG, eyG = self.calc_emittanceG()
+        sdxG = weighted_std(self.SU_data[:, 0], self.SU_data[:, 6])
+        sdyG = weighted_std(self.SU_data[:, 2], self.SU_data[:, 6])
+        bxG = beta(sdxG, exG)
+        byG = beta(sdyG, eyG)
+
+        xpxG, ypyG = self.calc_xpxypyG()
+
+        #self.dict['alpha_x'] = talpha(xpx, self.dict['e_x'])
+        #self.dict['alpha_y'] = talpha(ypy, self.dict['e_y'])
+
+        axG = talpha(xpxG, bxG)
+        ayG = talpha(ypyG, byG)
+
+        print 'Twiss in X are = ', bxG, axG
+        print 'Twiss in Y are = ', byG, ayG
+
 
         self.axis_labels.update({'CoM_x': 'CoM X position',
                                  'CoM_y': 'CoM Y position',
@@ -224,7 +338,11 @@ class Statistics(ParticleDistribution):
                                  'std_x': 'STD of x position',
                                  'std_y': 'STD of y position',
                                  'beta_x': 'beta x',
-                                 'beta_y': 'beta y'})
+                                 'beta_y': 'beta y',
+                                 'alpha_x': 'alpha x',
+                                 'alpha_y': 'alpha y',
+                                 'std_px': 'STD of x position',
+                                 'std_py': 'STD of y position'})
 
     def calc_current(self):
         '''Calculates current per slice and returns array - uses approximation
@@ -504,7 +622,8 @@ class Bokeh_Plotting():
                        'std_pz':'STD of Z momentum', 'std_x':'STD of x position',
                        'std_y':'STD of y position', 'beta_x':'beta x', 'beta_y':'beta y',
                        'MX_gain': 'Ming Xie Gain Length', '1D_gain': '1D Gain Length',
-                       'pierce': 'Pierce Parameter'}
+                       'std_px':'std_px', 'std_py':'std_py', 'pierce': 'Pierce Parameter',
+                       'alpha_x':'alpha_x', 'alpha_y':'alpha_y'}
 
         x_data = self.dict[x_axis]
         y_data = self.dict[y_axis]
@@ -605,6 +724,10 @@ class Bokeh_Plotting():
 
         beta = self.custom_plot('slice_z', 'beta_x', key='beta', plotter='line', legend="B(x)")
         beta.line(self.dict['slice_z'], self.dict['beta_y'], color='blue', legend="B(y)")
+
+        alphax = self.custom_plot('slice_z', 'alpha_x', key='alphax', plotter='line', legend="alpha x")
+        alphax.line(self.dict['slice_z'], self.dict['alpha_y'], color='blue', legend="alpha y")
+        
         CoM_pz = self.custom_plot('slice_z', 'CoM_pz', key='CoM_pz', plotter='line')
 
         if self.dict.__contains__('MX_gain'):
@@ -636,7 +759,7 @@ class Bokeh_Plotting():
         l4 = self.layout([[e_y, mean_pos],
                           [CoM_p,CoM_pz],
                           [current,std],
-                          [beta]], sizing_mode='fixed')
+                          [beta, alphax]], sizing_mode='fixed')
 
         tab1 = self.Panel(child=l1, title="Transverse phase space")
         tab2 = self.Panel(child=l2, title="Longitudinal phase space 1")
