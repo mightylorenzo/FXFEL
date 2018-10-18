@@ -5,7 +5,7 @@ def plots(filepath):
 
 # Init FEL plotting object
 
-    FEL = pt.ProcessedData(filepath,num_slices=50,undulator_period=0.0275,k_fact=1.13)
+    FEL = pt.ProcessedData(filepath,num_slices=50,undulator_period=0.015,k_fact=1.41)
 
 # plot default FEL plots
 
