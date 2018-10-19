@@ -606,7 +606,8 @@ class Bokeh_Plotting():
         self.layout, self.Tabs, self.Panel = (layout, Tabs, Panel)
 
     def custom_plot(self, x_axis, y_axis, key='', plotter='circle', color='green',
-                    file_name=False, text_color='black', legend=False, title=True, save = False):
+                    file_name=False, text_color='black', legend=False, title=True,
+                    logscale = False, save = False):
 
         from bokeh.models import Range1d
 
@@ -632,9 +633,14 @@ class Bokeh_Plotting():
             title = ''.join([axis_titles[y_axis], ' against ', axis_titles[x_axis]])
 
 
-        p = self.figure(title=title,
-                        x_axis_label=self.axis_labels[x_axis],
-                        y_axis_label=self.axis_labels[y_axis])
+        if logscale:
+            p = self.figure(title=title, y_axis_type="log",
+                            x_axis_label=self.axis_labels[x_axis],
+                            y_axis_label=self.axis_labels[y_axis])
+        else:
+            p = self.figure(title=title,
+                            x_axis_label=self.axis_labels[x_axis],
+                            y_axis_label=self.axis_labels[y_axis])
 
 
         p.yaxis.axis_label_text_color = text_color
@@ -733,6 +739,10 @@ class Bokeh_Plotting():
         if self.dict.__contains__('MX_gain'):
             FEL_gain = self.custom_plot('slice_z','MX_gain', key='gain', plotter='line', legend='Ming Xie gain')
             gain_length = self.custom_plot('slice_z', '1D_gain', key='gain_length', plotter='line', legend="1D gain length")
+            FEL_gainL = self.custom_plot('slice_z','MX_gain', key='gain_log', plotter='line', legend='Ming Xie gain', logscale = True)
+            gain_lengthL = self.custom_plot('slice_z', '1D_gain', key='gain_length_log', plotter='line', legend="1D gain length", logscale = True)
+
+            
 
         #To add more simply add more lines in the format above, code must beedited below to display this
     def plot_defaults(self, show_html = False):
@@ -767,7 +777,8 @@ class Bokeh_Plotting():
         tab4 = self.Panel(child=l4, title="Slice properties")
 
         if self.dict.__contains__('MX_gain'):
-            l5 = self.layout([[gain,gain_length]], sizing_mode='fixed')
+            l5 = self.layout([[gain,gain_length], 
+                              [gain_log, gain_length_log]], sizing_mode='fixed')
             tab5 = self.Panel(child=l5, title="FEL parameters")
             tabs = self.Tabs(tabs=[tab1, tab2, tab3, tab4, tab5])
             #tabs = self.Tabs(tabs=[tab1, tab4, tab5])
