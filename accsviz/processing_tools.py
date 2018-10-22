@@ -325,8 +325,8 @@ class Statistics(ParticleDistribution):
         axG = talpha(xpxG, bxG)
         ayG = talpha(ypyG, byG)
 
-        print 'Twiss in X are = ', bxG, axG
-        print 'Twiss in Y are = ', byG, ayG
+#        print 'Twiss in X are = ', bxG, axG
+#        print 'Twiss in Y are = ', byG, ayG
 
 
         self.axis_labels.update({'CoM_x': 'CoM X position',
