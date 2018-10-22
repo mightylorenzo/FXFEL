@@ -28,8 +28,16 @@ def beta(std_pos, emittance):
     #calc = (np.sqrt(4*np.log(2))*std_pos)
     #calc = np.power(calc , 2)
     calc = np.power(std_pos , 2)
-    calc = np.divide(calc, emittance)
-
+    if type(emittance) is np.ndarray:
+        mask1 = np.where(emittance > 0.0)
+        mask2 = np.where(emittance <= 0.0)
+        calc[mask1] = np.divide(calc[mask1], emittance[mask1])
+        calc[mask2] = 0.0
+    else:
+        if (emittance>0.0):
+            calc = calc / emittance
+        else:
+            calc = 0.0
     return calc
 
 #def talpha(xpx_cor, emittance):
@@ -173,19 +181,38 @@ class Statistics(ParticleDistribution):
             m_mOmy = self.SU_data[:, 3][comparison] / self.SU_data[:, 5][comparison]
             wts = self.SU_data[:, 6][comparison]
             
+            
+            
+            if (np.sum(wts) > 0.0):
             ###########~~Code by Piotr Traczykowski~~###############################################
-            x_2 = ((np.sum(wts*m_POSx*m_POSx))/np.sum(wts))-(np.average(m_POSx, weights=wts))**2.0                     #
-            px_2 = ((np.sum(wts*m_mOmx*m_mOmx))/np.sum(wts))-(np.average(m_mOmx, weights=wts))**2.0                    #
-            xpx = np.sum(wts*m_POSx*m_mOmx)/np.sum(wts)-np.sum(wts*m_POSx)*np.sum(wts*m_mOmx)/(np.sum(wts))**2 #
-                                                                                                   #
-            y_2 = ((np.sum(wts*m_POSy*m_POSy))/np.sum(wts))-(np.average(m_POSy, weights=wts))**2.0                     #
-            py_2 = ((np.sum(wts*m_mOmy*m_mOmy))/np.sum(wts))-(np.average(m_mOmy, weights=wts))**2.0                    #
-            ypy = np.sum(wts*m_POSy*m_mOmy)/np.sum(wts)-np.sum(wts*m_POSy)*np.sum(wts*m_mOmy)/(np.sum(wts))**2 #
-                                                                                                   #
-            #self.dict['e_x'][i] = (1.0/(m*c))*np.sqrt((x_2*px_2)-(xpx*xpx))                        #
-            #self.dict['e_y'][i] = (1.0/(m*c))*np.sqrt((y_2*py_2)-(ypy*ypy))                        #
-            self.dict['e_x'][i] = np.sqrt((x_2*px_2)-(xpx*xpx))                        #
-            self.dict['e_y'][i] = np.sqrt((y_2*py_2)-(ypy*ypy))
+                x_2 = ((np.sum(wts*m_POSx*m_POSx))/np.sum(wts))-(np.average(m_POSx, weights=wts))**2.0
+                px_2 = ((np.sum(wts*m_mOmx*m_mOmx))/np.sum(wts))-(np.average(m_mOmx, weights=wts))**2.0
+                xpx = np.sum(wts*m_POSx*m_mOmx)/np.sum(wts)-np.sum(wts*m_POSx)*np.sum(wts*m_mOmx)/(np.sum(wts))**2
+
+                y_2 = ((np.sum(wts*m_POSy*m_POSy))/np.sum(wts))-(np.average(m_POSy, weights=wts))**2.0
+                py_2 = ((np.sum(wts*m_mOmy*m_mOmy))/np.sum(wts))-(np.average(m_mOmy, weights=wts))**2.0
+                ypy = np.sum(wts*m_POSy*m_mOmy)/np.sum(wts)-np.sum(wts*m_POSy)*np.sum(wts*m_mOmy)/(np.sum(wts))**2
+                self.dict['e_x'][i] =(x_2*px_2)-(xpx*xpx)
+                if (self.dict['e_x'][i] > 0.0):
+                    self.dict['e_x'][i] = np.sqrt(self.dict['e_x'][i])
+                else:
+                    self.dict['e_x'][i] = 0.0
+                self.dict['e_y'][i] = (y_2*py_2)-(ypy*ypy)
+                if (self.dict['e_y'][i] > 0.0):
+                    self.dict['e_y'][i] = np.sqrt(self.dict['e_y'][i])
+                else:
+                    self.dict['e_y'][i] = 0.0
+            else:
+                x_2 = 0.0
+                px_2 = 0.0
+                xpx = 0.0
+                y_2 = 0.0
+                py_2 = 0.0
+                ypy = 0.0
+                self.dict['e_x'][i] = 0.0
+                self.dict['e_y'][i] = 0.0
+
+            
             ########################################################################################
 
     def calc_emittanceG(self):
@@ -197,17 +224,24 @@ class Statistics(ParticleDistribution):
         m_mOmy = self.SU_data[:, 3] / self.SU_data[:, 5]
         wts = self.SU_data[:, 6]
 
-
-        x_2 = ((np.sum(wts*m_POSx*m_POSx))/np.sum(wts))-(np.average(m_POSx, weights=wts))**2.0                     #
-        px_2 = ((np.sum(wts*m_mOmx*m_mOmx))/np.sum(wts))-(np.average(m_mOmx, weights=wts))**2.0                    #
-        xpx = np.sum(wts*m_POSx*m_mOmx)/np.sum(wts)-np.sum(wts*m_POSx)*np.sum(wts*m_mOmx)/(np.sum(wts))**2 #
-                                                                                                   #
-        y_2 = ((np.sum(wts*m_POSy*m_POSy))/np.sum(wts))-(np.average(m_POSy, weights=wts))**2.0                     #
-        py_2 = ((np.sum(wts*m_mOmy*m_mOmy))/np.sum(wts))-(np.average(m_mOmy, weights=wts))**2.0                    #
-        ypy = np.sum(wts*m_POSy*m_mOmy)/np.sum(wts)-np.sum(wts*m_POSy)*np.sum(wts*m_mOmy)/(np.sum(wts))**2 #
-
-        exf = np.sqrt((x_2*px_2)-(xpx*xpx))
-        eyf = np.sqrt((y_2*py_2)-(ypy*ypy))
+        if (np.sum(wts) > 0.0):
+            x_2 = ((np.sum(wts*m_POSx*m_POSx))/np.sum(wts))-(np.average(m_POSx, weights=wts))**2.0
+            px_2 = ((np.sum(wts*m_mOmx*m_mOmx))/np.sum(wts))-(np.average(m_mOmx, weights=wts))**2.0
+            xpx = np.sum(wts*m_POSx*m_mOmx)/np.sum(wts)-np.sum(wts*m_POSx)*np.sum(wts*m_mOmx)/(np.sum(wts))**2
+            y_2 = ((np.sum(wts*m_POSy*m_POSy))/np.sum(wts))-(np.average(m_POSy, weights=wts))**2.0
+            py_2 = ((np.sum(wts*m_mOmy*m_mOmy))/np.sum(wts))-(np.average(m_mOmy, weights=wts))**2.0
+            ypy = np.sum(wts*m_POSy*m_mOmy)/np.sum(wts)-np.sum(wts*m_POSy)*np.sum(wts*m_mOmy)/(np.sum(wts))**2
+            exf = np.sqrt((x_2*px_2)-(xpx*xpx))
+            eyf = np.sqrt((y_2*py_2)-(ypy*ypy))
+        else:
+            x_2 = 0.0
+            px_2 = 0.0
+            xpx = 0.0
+            y_2 = 0.0
+            py_2 = 0.0
+            ypy = 0.0
+            exf = 0.0
+            eyf = 0.0
 
         return exf, eyf
 
@@ -224,14 +258,24 @@ class Statistics(ParticleDistribution):
             m_mOmy = self.SU_data[:, 3][comparison] / self.SU_data[:, 5][comparison]
             wts = self.SU_data[:, 6][comparison]
 
-            x_2 = ((np.sum(wts*m_POSx*m_POSx))/np.sum(wts))-(np.average(m_POSx, weights=wts))**2.0
-            y_2 = ((np.sum(wts*m_POSy*m_POSy))/np.sum(wts))-(np.average(m_POSy, weights=wts))**2.0
-
-            xpx[i] = np.sum(wts*m_POSx*m_mOmx)/np.sum(wts)-np.sum(wts*m_POSx)*np.sum(wts*m_mOmx)/(np.sum(wts))**2
-            ypy[i] = np.sum(wts*m_POSy*m_mOmy)/np.sum(wts)-np.sum(wts*m_POSy)*np.sum(wts*m_mOmy)/(np.sum(wts))**2
-
-            xpx[i] = xpx[i] / x_2
-            ypy[i] = ypy[i] / y_2
+            if (np.sum(wts) > 0.0):
+                x_2 = ((np.sum(wts*m_POSx*m_POSx))/np.sum(wts))-(np.average(m_POSx, weights=wts))**2.0
+                y_2 = ((np.sum(wts*m_POSy*m_POSy))/np.sum(wts))-(np.average(m_POSy, weights=wts))**2.0
+                xpx[i] = np.sum(wts*m_POSx*m_mOmx)/np.sum(wts)-np.sum(wts*m_POSx)*np.sum(wts*m_mOmx)/(np.sum(wts))**2
+                ypy[i] = np.sum(wts*m_POSy*m_mOmy)/np.sum(wts)-np.sum(wts*m_POSy)*np.sum(wts*m_mOmy)/(np.sum(wts))**2
+                if (x_2>0.0):
+                    xpx[i] = xpx[i] / x_2
+                else:
+                    xpx[i] = 0.0
+                if (y_2>0.0):
+                    ypy[i] = ypy[i] / y_2
+                else:
+                    ypy[i] = 0.0
+            else:
+                x_2 = 0.0
+                y_2 = 0.0
+                xpx[i] = 0.0
+                ypy[i] = 0.0
 
         return xpx, ypy
 
@@ -245,12 +289,18 @@ class Statistics(ParticleDistribution):
         m_mOmy = self.SU_data[:, 3] / self.SU_data[:, 5]
         wts = self.SU_data[:, 6]
 
-        x_2 = ((np.sum(wts*m_POSx*m_POSx))/np.sum(wts))-(np.average(m_POSx, weights=wts))**2.0
-        y_2 = ((np.sum(wts*m_POSy*m_POSy))/np.sum(wts))-(np.average(m_POSy, weights=wts))**2.0
-
-        xpx = np.sum(wts*m_POSx*m_mOmx)/np.sum(wts)-np.sum(wts*m_POSx)*np.sum(wts*m_mOmx)/(np.sum(wts))**2
-        ypy = np.sum(wts*m_POSy*m_mOmy)/np.sum(wts)-np.sum(wts*m_POSy)*np.sum(wts*m_mOmy)/(np.sum(wts))**2
-
+        if (np.sum(wts) > 0.0):
+            x_2 = ((np.sum(wts*m_POSx*m_POSx))/np.sum(wts))-(np.average(m_POSx, weights=wts))**2.0
+            y_2 = ((np.sum(wts*m_POSy*m_POSy))/np.sum(wts))-(np.average(m_POSy, weights=wts))**2.0
+            xpx = np.sum(wts*m_POSx*m_mOmx)/np.sum(wts)-np.sum(wts*m_POSx)*np.sum(wts*m_mOmx)/(np.sum(wts))**2
+            ypy = np.sum(wts*m_POSy*m_mOmy)/np.sum(wts)-np.sum(wts*m_POSy)*np.sum(wts*m_mOmy)/(np.sum(wts))**2
+        else:
+            x_2 = 0.0
+            y_2 = 0.0
+            xpx = 0.0
+            ypy = 0.0
+        
+        
         xpx = xpx / x_2
         ypy = ypy / y_2
 
@@ -285,18 +335,32 @@ class Statistics(ParticleDistribution):
         for i, comparison in enumerate(self.dict['slice_keys']):
             weight = self.SU_data[:, 6][comparison]
 
-            self.dict['CoM_x'][i] = np.average(self.SU_data[:, 0][comparison], weights=weight)
-            self.dict['CoM_y'][i] = np.average(self.SU_data[:, 2][comparison], weights=weight)
-            self.dict['CoM_z'][i] = np.average(self.SU_data[:, 4][comparison], weights=weight)
-            self.dict['CoM_px'][i] = np.average(self.SU_data[:, 1][comparison], weights=weight)
-            self.dict['CoM_py'][i] = np.average(self.SU_data[:, 3][comparison], weights=weight)
-            self.dict['CoM_pz'][i] = np.average(self.SU_data[:, 5][comparison], weights=weight)
-            self.dict['std_pz'][i] = weighted_std(self.SU_data[:, 5][comparison], weight)
-            self.dict['std_px'][i] = weighted_std(self.SU_data[:, 1][comparison], weight)
-            self.dict['std_py'][i] = weighted_std(self.SU_data[:, 3][comparison], weight)
-            self.dict['std_x'][i] = weighted_std(self.SU_data[:, 0][comparison], weight)
-            self.dict['std_y'][i] = weighted_std(self.SU_data[:, 2][comparison], weight)
-            self.dict['std_z'][i] = weighted_std(self.SU_data[:, 4][comparison], weight)
+            if (np.sum(weight)>0.0):
+                self.dict['CoM_x'][i] = np.average(self.SU_data[:, 0][comparison], weights=weight)
+                self.dict['CoM_y'][i] = np.average(self.SU_data[:, 2][comparison], weights=weight)
+                self.dict['CoM_z'][i] = np.average(self.SU_data[:, 4][comparison], weights=weight)
+                self.dict['CoM_px'][i] = np.average(self.SU_data[:, 1][comparison], weights=weight)
+                self.dict['CoM_py'][i] = np.average(self.SU_data[:, 3][comparison], weights=weight)
+                self.dict['CoM_pz'][i] = np.average(self.SU_data[:, 5][comparison], weights=weight)
+                self.dict['std_pz'][i] = weighted_std(self.SU_data[:, 5][comparison], weight)
+                self.dict['std_px'][i] = weighted_std(self.SU_data[:, 1][comparison], weight)
+                self.dict['std_py'][i] = weighted_std(self.SU_data[:, 3][comparison], weight)
+                self.dict['std_x'][i] = weighted_std(self.SU_data[:, 0][comparison], weight)
+                self.dict['std_y'][i] = weighted_std(self.SU_data[:, 2][comparison], weight)
+                self.dict['std_z'][i] = weighted_std(self.SU_data[:, 4][comparison], weight)
+            else:
+                self.dict['CoM_x'][i] = 0.0
+                self.dict['CoM_y'][i] = 0.0
+                self.dict['CoM_z'][i] = 0.0
+                self.dict['CoM_px'][i] = 0.0
+                self.dict['CoM_py'][i] = 0.0
+                self.dict['CoM_pz'][i] = 0.0
+                self.dict['std_pz'][i] = 0.0
+                self.dict['std_px'][i] = 0.0
+                self.dict['std_py'][i] = 0.0
+                self.dict['std_x'][i] = 0.0
+                self.dict['std_y'][i] = 0.0
+                self.dict['std_z'][i] = 0.0
 
         self.dict['beta_x'] = beta(self.dict['std_x'], self.dict['e_x'])
         self.dict['beta_y'] = beta(self.dict['std_y'], self.dict['e_y'])
