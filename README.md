@@ -15,7 +15,7 @@ We recommend using Anaconda, upon which this software has been tested and used. 
 git clone https://github.com/mightylorenzo/FXFEL.git fxfelviz
 ```
 
-which will create the `fxfelviz` directory and download the file into it. Then, go into the new directory, and run pip to install, so:
+which will create the `fxfelviz` directory and download the file into it. Then, go into the new directory, and run `pip` to install, so:
 
 ```
 cd fxfelviz
