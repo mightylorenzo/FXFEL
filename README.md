@@ -10,7 +10,7 @@ and an .html file will be opened in your browser containing the plots. Note the 
 
 ## To Install
 
-We recommend using Anaconda, upon which this software has been tested and used. Anaconda will also allow the use of the Jupyter Notebook examples in the `example` directory. Grab this source code by cloning the repo or downloading a zip file of the source. To clone, do
+We recommend using Anaconda, upon which this software has been tested and used. Anaconda will also allow the use of the Jupyter Notebook examples in the `notebooks` directory. Grab this source code by cloning the repo or downloading a zip file of the source. To clone, do
 ```
 git clone https://github.com/mightylorenzo/FXFEL.git fxfelviz
 ```
