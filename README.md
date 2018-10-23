@@ -8,6 +8,8 @@ python plots.py test.h5
 ```
 and an .html file will be opened in your browser containing the plots. Note the tabs at the top which allow you to view different types of plots.
 
+There are some Jupyter Notebooks in the `notebooks` directory, which include examples of use of the API. `Default Plots.ipynb` contains simple instructions for generating the default set of plots in an `.html` file - the example script `plots.py` mentioned above basically accumulates those commands into one script. `Particle Distribution Visualization.ipynb` contains a more in-depth usage and customization of plots and calculations. Before using the example notebooks, install the package as shown below.
+
 ## To Install
 
 We recommend using Anaconda, upon which this software has been tested and used. Anaconda will also allow the use of the Jupyter Notebook examples in the `notebooks` directory. Grab this source code by cloning the repo or downloading a zip file of the source. To clone, do
