@@ -26,7 +26,7 @@ pip install .
 
 Note the period `.` in the last line. The Python package `accsviz` will then be available for use in your own Python scripts or functions (see the supplied exemplar `plots.py` script for an example of use).
 
-## Dependencies:
+## Dependencies
 
  - Numpy
  - pytables
